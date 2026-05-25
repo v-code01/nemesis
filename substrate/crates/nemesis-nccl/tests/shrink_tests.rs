@@ -1,5 +1,5 @@
 use nemesis_nccl::{backend::NcclBackend, sim::NcclSim};
-use nemesis_proto::healer::v1::{ShrinkRequest, ExpandRequest};
+use nemesis_proto::healer::v1::{ExpandRequest, ShrinkRequest};
 
 #[tokio::test]
 async fn sim_shrink_succeeds_and_returns_duration() {
@@ -43,7 +43,11 @@ async fn sim_shrink_duration_under_30_seconds() {
         exclude_ranks: vec![63],
     };
     let result = sim.shrink(&req).await.unwrap();
-    assert!(result.duration_ns < 30_000_000_000, "duration {}ns exceeds 30s", result.duration_ns);
+    assert!(
+        result.duration_ns < 30_000_000_000,
+        "duration {}ns exceeds 30s",
+        result.duration_ns
+    );
 }
 
 #[tokio::test]
@@ -57,5 +61,8 @@ async fn sim_shrink_exhausting_all_ranks_returns_error() {
     let result = sim.shrink(&req).await.unwrap();
     assert!(!result.success, "shrinking all ranks must fail");
     assert!(!result.error.is_empty(), "error message must be present");
-    assert_eq!(result.active_rank_count, 4, "rank count must be unchanged on failure");
+    assert_eq!(
+        result.active_rank_count, 4,
+        "rank count must be unchanged on failure"
+    );
 }

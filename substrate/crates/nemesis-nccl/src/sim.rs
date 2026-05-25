@@ -100,7 +100,10 @@ impl NcclBackend for NcclSim {
             Self::seeded_duration_ns(&mut state)
         };
         // Cap actual sleep at 10ms so tests don't time out
-        tokio::time::sleep(tokio::time::Duration::from_nanos(duration_ns.min(10_000_000))).await;
+        tokio::time::sleep(tokio::time::Duration::from_nanos(
+            duration_ns.min(10_000_000),
+        ))
+        .await;
         let active_rank_count = {
             let mut state = self.state.lock();
             state.active_ranks -= excluded;

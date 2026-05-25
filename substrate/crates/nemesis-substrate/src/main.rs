@@ -16,7 +16,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let port: u16 = match std::env::args().skip_while(|a| a != "--port").nth(1) {
-        Some(s) => s.parse::<u16>().map_err(|_| anyhow::anyhow!("invalid --port value: {s}"))?,
+        Some(s) => s
+            .parse::<u16>()
+            .map_err(|_| anyhow::anyhow!("invalid --port value: {s}"))?,
         None => 50051,
     };
 
@@ -27,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
 
     let telemetry_svc = TelemetryServiceImpl::new(store.clone(), graph.clone());
     let scheduler_svc = SchedulerServiceImpl::new(graph.clone());
-    let healer_svc    = HealerServiceImpl::new_sim(8, 0);
+    let healer_svc = HealerServiceImpl::new_sim(8, 0);
 
     tracing::info!("nemesis-substrate listening on {addr}");
     Server::builder()

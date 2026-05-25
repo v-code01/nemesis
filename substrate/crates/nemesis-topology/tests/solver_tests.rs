@@ -51,7 +51,11 @@ fn tp8_nvl12_placed_on_nvlink_cluster() {
     let solver = TopologySolver::new(graph);
     let spec = parse("TP8_NVL12").unwrap();
     let result = solver.solve(&spec);
-    assert!(result.placed, "expected placement; rejection: {}", result.rejection_reason);
+    assert!(
+        result.placed,
+        "expected placement; rejection: {}",
+        result.rejection_reason
+    );
     assert_eq!(result.gpu_ids.len(), 8);
 }
 
@@ -94,7 +98,11 @@ fn pp4_ib2_placed_on_ib_chain() {
     let solver = TopologySolver::new(graph);
     let spec = parse("PP4_IB2").unwrap();
     let result = solver.solve(&spec);
-    assert!(result.placed, "expected placement; rejection: {}", result.rejection_reason);
+    assert!(
+        result.placed,
+        "expected placement; rejection: {}",
+        result.rejection_reason
+    );
     assert_eq!(result.gpu_ids.len(), 4);
 }
 
@@ -105,7 +113,10 @@ fn pp4_ib0_rejected_on_multi_hop_chain() {
     let solver = TopologySolver::new(graph);
     let spec = parse("PP4_IB0").unwrap();
     let result = solver.solve(&spec);
-    assert!(!result.placed, "expected rejection for IB0 on a 1-hop chain");
+    assert!(
+        !result.placed,
+        "expected rejection for IB0 on a 1-hop chain"
+    );
     assert!(!result.rejection_reason.is_empty());
 }
 
@@ -161,6 +172,9 @@ fn disjunction_all_fail_returns_rejection() {
     let solver = TopologySolver::new(graph);
     let spec = parse("TP8_NVL600|TP8_NVL50").unwrap();
     let result = solver.solve(&spec);
-    assert!(!result.placed, "no alternative should succeed with 10 GB/s links");
+    assert!(
+        !result.placed,
+        "no alternative should succeed with 10 GB/s links"
+    );
     assert!(!result.rejection_reason.is_empty());
 }

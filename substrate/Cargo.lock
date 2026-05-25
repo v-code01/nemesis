@@ -578,10 +578,12 @@ name = "nemesis-substrate"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "nemesis-graph",
  "nemesis-nccl",
  "nemesis-proto",
  "nemesis-telemetry",
  "nemesis-topology",
+ "parking_lot",
  "tokio",
  "tonic",
  "tracing",

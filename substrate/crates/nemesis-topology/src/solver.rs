@@ -26,9 +26,9 @@ use std::sync::Arc;
 /// The outcome of a single `TopologySolver::solve` call.
 pub struct PlacementResult {
     /// True when the solver found a valid GPU assignment.
-    pub placed:           bool,
+    pub placed: bool,
     /// The gpu_ids assigned to this job; empty when `placed == false`.
-    pub gpu_ids:          Vec<String>,
+    pub gpu_ids: Vec<String>,
     /// Human-readable reason for rejection; empty when `placed == true`.
     pub rejection_reason: String,
 }
@@ -37,13 +37,21 @@ impl PlacementResult {
     /// Construct a successful placement.
     #[inline]
     pub fn ok(gpu_ids: Vec<String>) -> Self {
-        Self { placed: true, gpu_ids, rejection_reason: String::new() }
+        Self {
+            placed: true,
+            gpu_ids,
+            rejection_reason: String::new(),
+        }
     }
 
     /// Construct a failed placement with a reason.
     #[inline]
     pub fn rejected(reason: impl Into<String>) -> Self {
-        Self { placed: false, gpu_ids: Vec::new(), rejection_reason: reason.into() }
+        Self {
+            placed: false,
+            gpu_ids: Vec::new(),
+            rejection_reason: reason.into(),
+        }
     }
 }
 
@@ -96,7 +104,11 @@ impl TopologySolver {
                 let min_bw = constraints
                     .iter()
                     .find_map(|c| {
-                        if let Constraint::NvlMin(bw) = c { Some(*bw) } else { None }
+                        if let Constraint::NvlMin(bw) = c {
+                            Some(*bw)
+                        } else {
+                            None
+                        }
                     })
                     .unwrap_or(0.0_f32);
 
@@ -114,7 +126,11 @@ impl TopologySolver {
                 let max_hops = constraints
                     .iter()
                     .find_map(|c| {
-                        if let Constraint::IbMax(h) = c { Some(*h) } else { None }
+                        if let Constraint::IbMax(h) = c {
+                            Some(*h)
+                        } else {
+                            None
+                        }
                     })
                     .unwrap_or(u32::MAX);
 
@@ -158,7 +174,11 @@ impl TopologySolver {
         // Enforce disjointness: conjunction arms must not share GPUs.
         let left_set: std::collections::HashSet<&str> =
             left.gpu_ids.iter().map(String::as_str).collect();
-        if right.gpu_ids.iter().any(|id| left_set.contains(id.as_str())) {
+        if right
+            .gpu_ids
+            .iter()
+            .any(|id| left_set.contains(id.as_str()))
+        {
             return PlacementResult::rejected(
                 "conjunction arms overlap: insufficient distinct GPUs for both dimensions",
             );
@@ -272,7 +292,13 @@ mod tests {
         }
         for i in 0..4usize {
             for j in (i + 1)..4 {
-                g.add_link(&format!("gpu-{i}"), &format!("gpu-{j}"), LinkKind::NvLink, 600.0, 0);
+                g.add_link(
+                    &format!("gpu-{i}"),
+                    &format!("gpu-{j}"),
+                    LinkKind::NvLink,
+                    600.0,
+                    0,
+                );
             }
         }
         g.add_gpu("gpu-4", "node-1", 0);
@@ -284,8 +310,13 @@ mod tests {
         assert!(r.placed, "rejection: {}", r.rejection_reason);
         assert_eq!(r.gpu_ids.len(), 6);
         // Conjunction arms must be disjoint
-        let unique: std::collections::HashSet<&str> = r.gpu_ids.iter().map(String::as_str).collect();
-        assert_eq!(unique.len(), 6, "conjunction arms returned overlapping gpu_ids");
+        let unique: std::collections::HashSet<&str> =
+            r.gpu_ids.iter().map(String::as_str).collect();
+        assert_eq!(
+            unique.len(),
+            6,
+            "conjunction arms returned overlapping gpu_ids"
+        );
     }
 
     #[test]

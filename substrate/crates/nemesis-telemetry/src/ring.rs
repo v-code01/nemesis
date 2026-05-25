@@ -19,11 +19,11 @@ const WINDOW: usize = 36_000;
 /// This type is deliberately NOT Send/Sync on its own — callers wrap it in
 /// `parking_lot::RwLock<HashMap<String, MetricRing>>` inside `TelemetryStore`.
 pub struct MetricRing {
-    buf:  Vec<Option<MetricSample>>,
+    buf: Vec<Option<MetricSample>>,
     /// Index of the *next* write slot (advances mod WINDOW on every push).
     head: usize,
     /// Number of valid entries; saturates at WINDOW once the ring is full.
-    len:  usize,
+    len: usize,
 }
 
 impl MetricRing {
@@ -33,9 +33,9 @@ impl MetricRing {
         Self {
             // Vec::with_capacity alone would require unsafe or push-based
             // initialisation; vec![None; N] gives us a fully initialised slice.
-            buf:  vec![None; WINDOW],
+            buf: vec![None; WINDOW],
             head: 0,
-            len:  0,
+            len: 0,
         }
     }
 
@@ -76,7 +76,7 @@ impl MetricRing {
         // When we only want `take` < `len` samples we skip the first
         // `len - take` entries (the oldest ones we don't need).
         let oldest = (self.head + WINDOW - self.len) % WINDOW;
-        let skip   = self.len - take;
+        let skip = self.len - take;
 
         (0..take)
             .filter_map(|i| {

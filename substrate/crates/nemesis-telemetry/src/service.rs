@@ -19,8 +19,8 @@
 use crate::store::TelemetryStore;
 use nemesis_graph::ClusterGraph;
 use nemesis_proto::telemetry::v1::{
-    telemetry_service_server::TelemetryService,
-    ClusterSnapshot, EventFilter, HardwareEvent, MetricSample, Void,
+    telemetry_service_server::TelemetryService, ClusterSnapshot, EventFilter, HardwareEvent,
+    MetricSample, Void,
 };
 use parking_lot::RwLock;
 use std::pin::Pin;
@@ -48,8 +48,8 @@ impl TelemetryServiceImpl {
 impl TelemetryService for TelemetryServiceImpl {
     // --- associated stream types required by the generated trait ---
 
-    type IngestMetricsStream    = BoxStream<Void>;
-    type SubscribeEventsStream  = BoxStream<HardwareEvent>;
+    type IngestMetricsStream = BoxStream<Void>;
+    type SubscribeEventsStream = BoxStream<HardwareEvent>;
 
     // --- RPC implementations ---
 

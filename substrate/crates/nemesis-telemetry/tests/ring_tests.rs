@@ -12,14 +12,14 @@ use nemesis_telemetry::ring::MetricRing;
 
 fn make_sample(gpu_id: &str, ecc_corr: f32) -> nemesis_proto::telemetry::v1::MetricSample {
     nemesis_proto::telemetry::v1::MetricSample {
-        gpu_id:                       gpu_id.to_string(),
-        timestamp_ns:                 0,
-        ecc_correctable_rate:         ecc_corr,
-        ecc_uncorrectable_rate:       0.0,
-        temperature_celsius:          40.0,
-        nvlink_bandwidth_gbps:        600.0,
-        ib_bandwidth_gbps:            200.0,
-        sm_utilization:               0.8,
+        gpu_id: gpu_id.to_string(),
+        timestamp_ns: 0,
+        ecc_correctable_rate: ecc_corr,
+        ecc_uncorrectable_rate: 0.0,
+        temperature_celsius: 40.0,
+        nvlink_bandwidth_gbps: 600.0,
+        ib_bandwidth_gbps: 200.0,
+        sm_utilization: 0.8,
         memory_bandwidth_utilization: 0.7,
     }
 }

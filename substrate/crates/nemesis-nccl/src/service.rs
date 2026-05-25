@@ -77,7 +77,9 @@ impl HealerService for HealerServiceImpl {
             comms.insert(r.job_id.clone(), comm_id.clone());
         }
         self.world_sizes.write().insert(r.job_id, r.world_size);
-        Ok(Response::new(RegisterJobResponse { communicator_id: comm_id }))
+        Ok(Response::new(RegisterJobResponse {
+            communicator_id: comm_id,
+        }))
     }
 
     /// Shrink the NCCL communicator by removing `exclude_ranks`.

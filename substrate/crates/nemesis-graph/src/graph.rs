@@ -21,21 +21,21 @@ pub enum LinkKind {
 /// Per-GPU vertex payload stored in the graph.
 #[derive(Debug, Clone)]
 pub struct GpuNode {
-    pub gpu_id:      String,
-    pub node_id:     String,
+    pub gpu_id: String,
+    pub node_id: String,
     pub numa_domain: u32,
     /// False once mark_unhealthy() is called; excluded from all solver outputs.
-    pub healthy:     bool,
+    pub healthy: bool,
 }
 
 /// Per-edge payload stored in the graph.
 #[derive(Debug, Clone)]
 pub struct Link {
-    pub kind:           LinkKind,
+    pub kind: LinkKind,
     /// Bidirectional peak bandwidth in GB/s.
     pub bandwidth_gbps: f32,
     /// InfiniBand switch-hop count between the two endpoints (0 for NVLink/PCIe).
-    pub ib_hop_count:   u32,
+    pub ib_hop_count: u32,
 }
 
 /// Undirected topology graph over GPU nodes.
@@ -43,7 +43,7 @@ pub struct Link {
 /// petgraph's UnGraph is used because NVLink and PCIe fabrics are
 /// electrically symmetric — directionality adds no useful information.
 pub struct ClusterGraph {
-    graph:    UnGraph<GpuNode, Link>,
+    graph: UnGraph<GpuNode, Link>,
     /// Maps gpu_id -> NodeIndex for O(1) lookups. Never shrinks.
     id_index: HashMap<String, NodeIndex>,
 }
@@ -51,7 +51,7 @@ pub struct ClusterGraph {
 impl ClusterGraph {
     pub fn new() -> Self {
         Self {
-            graph:    UnGraph::new_undirected(),
+            graph: UnGraph::new_undirected(),
             id_index: HashMap::new(),
         }
     }
@@ -63,10 +63,10 @@ impl ClusterGraph {
             "duplicate gpu_id: {gpu_id}"
         );
         let idx = self.graph.add_node(GpuNode {
-            gpu_id:      gpu_id.to_string(),
-            node_id:     node_id.to_string(),
+            gpu_id: gpu_id.to_string(),
+            node_id: node_id.to_string(),
             numa_domain,
-            healthy:     true,
+            healthy: true,
         });
         self.id_index.insert(gpu_id.to_string(), idx);
     }
@@ -84,7 +84,15 @@ impl ClusterGraph {
     ) {
         let s = self.id_index[src];
         let d = self.id_index[dst];
-        self.graph.add_edge(s, d, Link { kind, bandwidth_gbps, ib_hop_count });
+        self.graph.add_edge(
+            s,
+            d,
+            Link {
+                kind,
+                bandwidth_gbps,
+                ib_hop_count,
+            },
+        );
     }
 
     /// Mark a GPU as unhealthy. Subsequent solver calls exclude it.
@@ -132,11 +140,7 @@ impl ClusterGraph {
     /// NVLink meshes are at most 8 nodes, so exhaustive Bron–Kerbosch enumeration
     /// is tractable (C(8,8) = 1 candidate in the best case). Returns the first
     /// clique found; does not guarantee the maximum clique.
-    pub fn find_nvlink_clique(
-        &self,
-        size: usize,
-        min_bandwidth_gbps: f32,
-    ) -> Option<Vec<String>> {
+    pub fn find_nvlink_clique(&self, size: usize, min_bandwidth_gbps: f32) -> Option<Vec<String>> {
         let candidates: Vec<NodeIndex> = self
             .graph
             .node_indices()
@@ -148,7 +152,12 @@ impl ClusterGraph {
             return None;
         }
 
-        self.clique_search(&candidates, size, min_bandwidth_gbps, &mut Vec::with_capacity(size))
+        self.clique_search(
+            &candidates,
+            size,
+            min_bandwidth_gbps,
+            &mut Vec::with_capacity(size),
+        )
     }
 
     /// Recursive backtracking clique search over a candidate slice.
@@ -176,7 +185,10 @@ impl ClusterGraph {
         }
         for (pos, &node) in candidates.iter().enumerate() {
             // node must have a qualifying NVLink edge to every node already in clique.
-            if current.iter().all(|&c| self.has_nvlink_edge(c, node, min_bw)) {
+            if current
+                .iter()
+                .all(|&c| self.has_nvlink_edge(c, node, min_bw))
+            {
                 current.push(node);
                 if let Some(result) =
                     self.clique_search(&candidates[pos + 1..], target, min_bw, current)
@@ -193,9 +205,9 @@ impl ClusterGraph {
     /// with bandwidth >= min_bw.
     #[inline]
     fn has_nvlink_edge(&self, a: NodeIndex, b: NodeIndex, min_bw: f32) -> bool {
-        self.graph.edges_connecting(a, b).any(|e| {
-            e.weight().kind == LinkKind::NvLink && e.weight().bandwidth_gbps >= min_bw
-        })
+        self.graph
+            .edges_connecting(a, b)
+            .any(|e| e.weight().kind == LinkKind::NvLink && e.weight().bandwidth_gbps >= min_bw)
     }
 
     /// Find a simple path of exactly `size` healthy nodes connected by
@@ -253,8 +265,7 @@ impl ClusterGraph {
             if !self.graph[next].healthy {
                 continue;
             }
-            if edge.weight().kind == LinkKind::InfiniBand
-                && edge.weight().ib_hop_count <= max_hops
+            if edge.weight().kind == LinkKind::InfiniBand && edge.weight().ib_hop_count <= max_hops
             {
                 path.push(next);
                 if let Some(result) = self.dfs_ib_path(next, target, max_hops, path) {
@@ -275,7 +286,9 @@ impl ClusterGraph {
     /// Link::kind is stored as i32 matching the proto enum:
     ///   Nvlink=0, Pcie=1, Infiniband=2
     pub fn to_proto(&self) -> nemesis_proto::telemetry::v1::ClusterTopology {
-        use nemesis_proto::telemetry::v1::{ClusterTopology, GpuNode as ProtoGpu, Link as ProtoLink};
+        use nemesis_proto::telemetry::v1::{
+            ClusterTopology, GpuNode as ProtoGpu, Link as ProtoLink,
+        };
 
         let nodes: Vec<ProtoGpu> = self
             .graph
@@ -283,10 +296,10 @@ impl ClusterGraph {
             .map(|i| {
                 let n = &self.graph[i];
                 ProtoGpu {
-                    gpu_id:      n.gpu_id.clone(),
-                    node_id:     n.node_id.clone(),
+                    gpu_id: n.gpu_id.clone(),
+                    node_id: n.node_id.clone(),
                     numa_domain: n.numa_domain,
-                    healthy:     n.healthy,
+                    healthy: n.healthy,
                 }
             })
             .collect();
@@ -298,16 +311,16 @@ impl ClusterGraph {
                 let (a, b) = self.graph.edge_endpoints(e).unwrap();
                 let w = &self.graph[e];
                 ProtoLink {
-                    src:            self.graph[a].gpu_id.clone(),
-                    dst:            self.graph[b].gpu_id.clone(),
+                    src: self.graph[a].gpu_id.clone(),
+                    dst: self.graph[b].gpu_id.clone(),
                     // Raw i32 values matching link::Kind enum order.
-                    kind:           match w.kind {
-                        LinkKind::NvLink     => 0, // Kind::Nvlink
-                        LinkKind::PCIe       => 1, // Kind::Pcie
+                    kind: match w.kind {
+                        LinkKind::NvLink => 0,     // Kind::Nvlink
+                        LinkKind::PCIe => 1,       // Kind::Pcie
                         LinkKind::InfiniBand => 2, // Kind::Infiniband
                     },
                     bandwidth_gbps: w.bandwidth_gbps,
-                    ib_hop_count:   w.ib_hop_count,
+                    ib_hop_count: w.ib_hop_count,
                 }
             })
             .collect();

@@ -40,10 +40,11 @@ jobs:
       - name: Test sim
         run: cd sim/crates/nemesis-sim && cargo test
 
-      - name: Build release binaries
-        run: |
-          cd substrate && cargo build --release
-          cd sim/crates/nemesis-sim && cargo build --release
+      - name: Build release (substrate)
+        run: cd substrate && cargo build --release
+
+      - name: Build release (sim)
+        run: cd sim/crates/nemesis-sim && cargo build --release
 
   bandwidth-model:
     name: Bandwidth model unit tests

@@ -37,7 +37,13 @@ fn nvlink_clique_found_in_8gpu_mesh() {
     }
     for i in 0..8usize {
         for j in (i + 1)..8 {
-            g.add_link(&format!("gpu-{i}"), &format!("gpu-{j}"), LinkKind::NvLink, 600.0, 0);
+            g.add_link(
+                &format!("gpu-{i}"),
+                &format!("gpu-{j}"),
+                LinkKind::NvLink,
+                600.0,
+                0,
+            );
         }
     }
     let clique = g.find_nvlink_clique(8, 200.0);
@@ -53,7 +59,13 @@ fn nvlink_clique_not_found_when_bandwidth_too_low() {
     }
     for i in 0..8usize {
         for j in (i + 1)..8 {
-            g.add_link(&format!("gpu-{i}"), &format!("gpu-{j}"), LinkKind::NvLink, 100.0, 0);
+            g.add_link(
+                &format!("gpu-{i}"),
+                &format!("gpu-{j}"),
+                LinkKind::NvLink,
+                100.0,
+                0,
+            );
         }
     }
     let clique = g.find_nvlink_clique(8, 600.0);

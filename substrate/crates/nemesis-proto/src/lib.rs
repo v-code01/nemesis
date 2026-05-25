@@ -35,6 +35,6 @@ pub mod nemesis {
 }
 
 // Flat re-exports so callers can use nemesis_proto::telemetry, ::topology, ::healer
-pub use nemesis::telemetry as telemetry;
-pub use nemesis::topology as topology;
-pub use nemesis::healer as healer;
+pub use nemesis::healer;
+pub use nemesis::telemetry;
+pub use nemesis::topology;

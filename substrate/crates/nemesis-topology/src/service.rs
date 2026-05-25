@@ -14,11 +14,11 @@
 
 use crate::{checker::type_check, parser::parse, solver::TopologySolver};
 use nemesis_graph::ClusterGraph;
+use nemesis_proto::telemetry::v1::{ClusterTopology, Void};
 use nemesis_proto::topology::v1::{
     scheduler_service_server::SchedulerService, JobSpec, PlacementResult as ProtoPlacementResult,
     ReleaseRequest, ValidationResult,
 };
-use nemesis_proto::telemetry::v1::{ClusterTopology, Void};
 use parking_lot::RwLock;
 use std::{collections::HashSet, sync::Arc};
 use tonic::{Request, Response, Status};
@@ -73,10 +73,16 @@ impl SchedulerService for SchedulerServiceImpl {
         let spec_str = &request.get_ref().topology_dsl;
 
         let result = match parse(spec_str) {
-            Err(e) => ValidationResult { valid: false, errors: vec![e] },
+            Err(e) => ValidationResult {
+                valid: false,
+                errors: vec![e],
+            },
             Ok(spec) => {
                 let errors = type_check(&spec);
-                ValidationResult { valid: errors.is_empty(), errors }
+                ValidationResult {
+                    valid: errors.is_empty(),
+                    errors,
+                }
             }
         };
 
@@ -127,10 +133,7 @@ impl SchedulerService for SchedulerServiceImpl {
 
     // Phase 1 stub: release does not yet remove GPU reservations.
     // Full implementation requires a job_id → gpu_ids map (Phase 2).
-    async fn release(
-        &self,
-        _request: Request<ReleaseRequest>,
-    ) -> Result<Response<Void>, Status> {
+    async fn release(&self, _request: Request<ReleaseRequest>) -> Result<Response<Void>, Status> {
         Ok(Response::new(Void {}))
     }
 

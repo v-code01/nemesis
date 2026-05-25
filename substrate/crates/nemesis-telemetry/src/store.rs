@@ -29,7 +29,7 @@ const BUS_CAPACITY: usize = 1_024;
 #[derive(Clone)]
 pub struct TelemetryStore {
     /// Per-GPU circular buffers.  Keyed by `gpu_id` string.
-    rings:  Arc<RwLock<HashMap<String, MetricRing>>>,
+    rings: Arc<RwLock<HashMap<String, MetricRing>>>,
     /// Sender half of the hardware-event broadcast bus.
     /// Retaining this keeps the channel open even when there are no receivers.
     bus_tx: broadcast::Sender<HardwareEvent>,
@@ -40,7 +40,7 @@ impl TelemetryStore {
     pub fn new() -> Self {
         let (bus_tx, _) = broadcast::channel(BUS_CAPACITY);
         Self {
-            rings:  Arc::new(RwLock::new(HashMap::new())),
+            rings: Arc::new(RwLock::new(HashMap::new())),
             bus_tx,
         }
     }
@@ -52,10 +52,7 @@ impl TelemetryStore {
     /// and the O(1) ring push.
     pub fn ingest(&self, sample: MetricSample) {
         let mut rings = self.rings.write();
-        rings
-            .entry(sample.gpu_id.clone())
-            .or_default()
-            .push(sample);
+        rings.entry(sample.gpu_id.clone()).or_default().push(sample);
     }
 
     /// Return up to `n` most-recent samples for `gpu_id`, oldest first.
