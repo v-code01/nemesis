@@ -1,0 +1,16 @@
+[package]
+name = "nemesis-telemetry"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nemesis-proto = { path = "../nemesis-proto" }
+nemesis-graph = { path = "../nemesis-graph" }
+tokio         = { workspace = true }
+tonic         = { workspace = true }
+parking_lot   = { workspace = true }
+anyhow        = { workspace = true }
+thiserror     = { workspace = true }
+tracing       = { workspace = true }
+async-stream  = { workspace = true }
+tokio-stream  = { workspace = true }

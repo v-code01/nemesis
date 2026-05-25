@@ -1,0 +1,19 @@
+[package]
+name = "nemesis-substrate"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "nemesis-substrate"
+path = "src/main.rs"
+
+[dependencies]
+nemesis-proto     = { path = "../nemesis-proto" }
+nemesis-telemetry = { path = "../nemesis-telemetry" }
+nemesis-topology  = { path = "../nemesis-topology" }
+nemesis-nccl      = { path = "../nemesis-nccl" }
+tokio             = { workspace = true }
+tonic             = { workspace = true }
+anyhow            = { workspace = true }
+tracing           = { workspace = true }
+tracing-subscriber = { workspace = true }

@@ -1,0 +1,11 @@
+[package]
+name = "nemesis-graph"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nemesis-proto = { path = "../nemesis-proto" }
+petgraph      = { workspace = true }
+serde         = { workspace = true }
+anyhow        = { workspace = true }
+thiserror     = { workspace = true }
