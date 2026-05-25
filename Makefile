@@ -1,8 +1,18 @@
-.PHONY: build test sim bench clean
+.PHONY: build test sim bench clean proto-gen
+
+proto-gen:
+	mkdir -p agents/nemesis/grpc
+	python -m grpc_tools.protoc \
+		-I proto \
+		--python_out=agents/nemesis/grpc \
+		--grpc_python_out=agents/nemesis/grpc \
+		proto/telemetry.proto proto/topology.proto proto/healer.proto
 
 build:
 	cd substrate && cargo build --release
 	cd sim/crates/nemesis-sim && cargo build --release
+	$(MAKE) proto-gen
+	cd agents && pip install -e . -q
 
 test:
 	cd substrate && cargo test --workspace
