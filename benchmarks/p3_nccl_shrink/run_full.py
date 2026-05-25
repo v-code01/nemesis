@@ -9,6 +9,7 @@ from pathlib import Path
 import grpc
 
 _ROOT = Path(__file__).parent.parent.parent
+# Monorepo: agents package lives at _ROOT/agents, not installed system-wide in CI
 sys.path.insert(0, str(_ROOT / "agents"))
 
 from nemesis.grpc import healer_pb2, healer_pb2_grpc, telemetry_pb2
@@ -17,6 +18,9 @@ _SIM_BIN = _ROOT / "sim" / "target" / "release" / "nemesis-sim"
 _SCENARIO = _ROOT / "sim" / "scenarios" / "ecc_escalation.yaml"
 _SIM_PORT = 50052
 _SIM_ADDR = f"localhost:{_SIM_PORT}"
+_SIM_STARTUP_TIMEOUT_S = 30.0
+_SIM_POLL_INTERVAL_S = 0.3
+_SIM_SHUTDOWN_TIMEOUT_S = 10
 
 
 def _wait_for_sim(stub: healer_pb2_grpc.HealerServiceStub, deadline: float) -> None:
@@ -25,8 +29,8 @@ def _wait_for_sim(stub: healer_pb2_grpc.HealerServiceStub, deadline: float) -> N
             stub.ListPlaybooks(telemetry_pb2.Void(), timeout=1.0)
             return
         except grpc.RpcError:
-            time.sleep(0.3)
-    raise TimeoutError("nemesis-sim did not start within 30s")
+            time.sleep(_SIM_POLL_INTERVAL_S)
+    raise TimeoutError(f"nemesis-sim did not start within {_SIM_STARTUP_TIMEOUT_S}s")
 
 
 def main() -> None:
@@ -52,33 +56,36 @@ def main() -> None:
     )
 
     try:
-        channel = grpc.insecure_channel(_SIM_ADDR)
-        healer_stub = healer_pb2_grpc.HealerServiceStub(channel)
-        _wait_for_sim(healer_stub, time.monotonic() + 30.0)
+        with grpc.insecure_channel(_SIM_ADDR) as channel:
+            healer_stub = healer_pb2_grpc.HealerServiceStub(channel)
+            _wait_for_sim(healer_stub, time.monotonic() + _SIM_STARTUP_TIMEOUT_S)
 
-        reg = healer_stub.RegisterJob(healer_pb2.RegisterJobRequest(
-            job_id="bench-p3-001", rank=0, world_size=8,
-        ))
-        comm_id = reg.communicator_id
+            reg = healer_stub.RegisterJob(healer_pb2.RegisterJobRequest(
+                job_id="bench-p3-001", rank=0, world_size=8,
+            ))
+            comm_id = reg.communicator_id
 
-        # gpu-3 is the degraded GPU in ecc_escalation scenario — exclude rank 3
-        shrink = healer_stub.ShrinkCommunicator(healer_pb2.ShrinkRequest(
-            communicator_id=comm_id,
-            job_id="bench-p3-001",
-            exclude_ranks=[3],
-        ))
+            # gpu-3 is the degraded GPU in ecc_escalation scenario — exclude rank 3
+            shrink = healer_stub.ShrinkCommunicator(healer_pb2.ShrinkRequest(
+                communicator_id=comm_id,
+                job_id="bench-p3-001",
+                exclude_ranks=[3],
+            ))
 
-        result = {
-            "resumption_seconds": round(shrink.duration_ns / 1e9, 3),
-            "job_restart_count": 0 if shrink.success else 1,
-            "active_rank_count": shrink.active_rank_count,
-            "success": shrink.success,
-            "seed": args.seed,
-        }
-        channel.close()
+            # job_restart_count: 0 on clean shrink, 1 if gRPC reports failure
+            result = {
+                "resumption_seconds": round(shrink.duration_ns / 1e9, 3),
+                "job_restart_count": 0 if shrink.success else 1,
+                "active_rank_count": shrink.active_rank_count,
+                "success": shrink.success,
+                "seed": args.seed,
+            }
     finally:
         sim.terminate()
-        sim.wait(timeout=10)
+        try:
+            sim.wait(timeout=_SIM_SHUTDOWN_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            sim.kill()
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(json.dumps(result, indent=2))

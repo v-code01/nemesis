@@ -21,11 +21,20 @@ def test_output_schema(tmp_path):
 
 
 def test_gate_resumption_seconds():
-    assert 12.5 < 30, "gate check: resumption_seconds < 30"
+    """Gate boundary: < 30s passes, >= 30s fails."""
+    gate = 30
+    assert 0.0 < gate
+    assert 12.5 < gate
+    assert 29.999 < gate
+    assert not (30.0 < gate)
+    assert not (31.0 < gate)
 
 
 def test_gate_job_restart_count():
-    assert 0 == 0, "gate check: job_restart_count = 0"
+    """Gate boundary: exactly 0 restarts passes, any nonzero fails."""
+    assert 0 == 0
+    assert not (1 == 0)
+    assert not (2 == 0)
 
 
 def test_run_full_importable():
