@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import collections
 import logging
 import time
-from typing import Optional
 
 import grpc
 import numpy as np
@@ -21,35 +21,32 @@ class TelemetryAgent:
     def __init__(
         self,
         substrate_addr: str,
-        model_path: Optional[str] = None,
+        model_path: str | None = None,
         poll_interval: float = POLL_INTERVAL_S,
     ) -> None:
         self._addr = substrate_addr
         self._poll_interval = poll_interval
         self._model = EccPredictor.load(model_path) if model_path else EccPredictor()
-        self._windows: dict[str, list[list[float]]] = {}
+        self._windows: dict[str, collections.deque[list[float]]] = {}
 
-    def _append_sample(self, sample) -> None:
-        gpu_id = sample.gpu_id
-        buf = self._windows.setdefault(gpu_id, [])
-        prev_corr = buf[-1][0] if buf else sample.ecc_correctable_rate
-        prev_uncorr = buf[-1][1] if buf else sample.ecc_uncorrectable_rate
-        row = [
-            sample.ecc_correctable_rate,
-            sample.ecc_uncorrectable_rate,
-            sample.temperature_celsius,
-            sample.sm_utilization,
-            sample.memory_bandwidth_utilization,
-            sample.nvlink_bandwidth_gbps,
-            sample.ib_bandwidth_gbps,
-            sample.ecc_correctable_rate - prev_corr,   # ecc_corr_delta
-            sample.ecc_uncorrectable_rate - prev_uncorr,  # ecc_uncorr_delta
-        ]
-        buf.append(row)
-        if len(buf) > SEQ_LEN:
-            del buf[0]
+    def _append_sample(self, sample: object) -> None:
+        gpu_id = sample.gpu_id  # type: ignore[attr-defined]
+        buf = self._windows.setdefault(gpu_id, collections.deque(maxlen=SEQ_LEN))
+        prev_corr = buf[-1][0] if buf else sample.ecc_correctable_rate  # type: ignore[attr-defined]
+        prev_uncorr = buf[-1][1] if buf else sample.ecc_uncorrectable_rate  # type: ignore[attr-defined]
+        buf.append([
+            sample.ecc_correctable_rate,  # type: ignore[attr-defined]
+            sample.ecc_uncorrectable_rate,  # type: ignore[attr-defined]
+            sample.temperature_celsius,  # type: ignore[attr-defined]
+            sample.sm_utilization,  # type: ignore[attr-defined]
+            sample.memory_bandwidth_utilization,  # type: ignore[attr-defined]
+            sample.nvlink_bandwidth_gbps,  # type: ignore[attr-defined]
+            sample.ib_bandwidth_gbps,  # type: ignore[attr-defined]
+            sample.ecc_correctable_rate - prev_corr,   # type: ignore[attr-defined]  # ecc_corr_delta
+            sample.ecc_uncorrectable_rate - prev_uncorr,  # type: ignore[attr-defined]  # ecc_uncorr_delta
+        ])
 
-    def _should_publish(self, _gpu_id: str, window: np.ndarray) -> bool:
+    def _should_publish(self, gpu_id: str, window: np.ndarray) -> bool:
         _, p2h, _ = self._model.infer(window)
         return p2h > THRESHOLD
 
@@ -60,6 +57,7 @@ class TelemetryAgent:
                 try:
                     await self._poll_and_infer(stub)
                 except grpc.aio.AioRpcError as exc:
+                    # sleep-after-catch is intentional: back off before retrying
                     log.warning("gRPC poll error: %s", exc)
                 await asyncio.sleep(self._poll_interval)
 
@@ -69,16 +67,16 @@ class TelemetryAgent:
 
         for sample in snapshot.latest:
             self._append_sample(sample)
-            buf = self._windows.get(sample.gpu_id, [])
+            buf = self._windows.get(sample.gpu_id, collections.deque())
             if len(buf) < SEQ_LEN:
                 continue
 
-            window = np.array(buf[-SEQ_LEN:], dtype=np.float32)
-            _, p2h, _ = self._model.infer(window)
-            if p2h <= THRESHOLD:
+            window = np.array(buf, dtype=np.float32)
+            if not self._should_publish(sample.gpu_id, window):
                 continue
 
             evidence = self._model.explain(window)
+            _, p2h, _ = self._model.infer(window)
             event = telemetry_pb2.HardwareEvent(
                 kind=telemetry_pb2.HardwareEvent.HARDWARE_FAILURE_PREDICTED,
                 gpu_id=sample.gpu_id,
