@@ -1,0 +1,16 @@
+name: ecc_isolation
+description: Isolate a GPU with escalating ECC correctable errors before uncorrectable failure.
+trigger: HARDWARE_FAILURE_PREDICTED
+steps:
+  - action: drain_gpu
+    description: Stop scheduling new work to the target GPU.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: checkpoint_jobs
+    description: Flush in-flight gradient buffers to persistent checkpoint.
+    params: {job_ids: "{{active_job_ids}}"}
+  - action: shrink_communicator
+    description: Exclude the failing GPU rank from active NCCL communicators.
+    params: {exclude_ranks: "{{failing_ranks}}"}
+  - action: notify
+    description: Emit HARDWARE_FAILURE_PREDICTED event to event bus.
+    params: {event_kind: HARDWARE_FAILURE_PREDICTED, gpu_id: "{{gpu_id}}"}

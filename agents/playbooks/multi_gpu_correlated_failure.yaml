@@ -1,0 +1,16 @@
+name: multi_gpu_correlated_failure
+description: Handle correlated failure predictions across two or more GPUs simultaneously.
+trigger: correlated_failure_predicted
+steps:
+  - action: identify_affected_jobs
+    description: Find all jobs with ranks on the affected GPUs.
+    params: {gpu_ids: "{{failing_gpu_ids}}"}
+  - action: checkpoint_jobs
+    description: Flush all affected jobs to persistent checkpoint.
+    params: {job_ids: "{{affected_job_ids}}"}
+  - action: shrink_all_communicators
+    description: Exclude all failing GPU ranks from all active communicators.
+    params: {exclude_gpu_ids: "{{failing_gpu_ids}}"}
+  - action: notify
+    description: Escalate correlated failure event for operator review.
+    params: {event_kind: CORRELATED_FAILURE, gpu_ids: "{{failing_gpu_ids}}"}

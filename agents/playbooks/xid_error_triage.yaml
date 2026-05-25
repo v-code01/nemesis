@@ -1,0 +1,16 @@
+name: xid_error_triage
+description: Triage NVIDIA XID error and route to appropriate recovery playbook.
+trigger: nvidia_xid_error
+steps:
+  - action: parse_xid_code
+    description: Parse XID code from NVIDIA driver log to determine error class.
+    params: {gpu_id: "{{gpu_id}}", xid: "{{xid_code}}"}
+  - action: route_to_playbook
+    description: >
+      Route to specific playbook based on XID class:
+      XID 13→ecc_isolation, XID 74→ecc_isolation, XID 79→driver_hang_recovery,
+      XID 92→pcie_error_recovery, XID 94→driver_hang_recovery, default→notify.
+    params: {xid: "{{xid_code}}", gpu_id: "{{gpu_id}}"}
+  - action: notify
+    description: Always emit XID event to event bus regardless of routing.
+    params: {event_kind: XID_ERROR, gpu_id: "{{gpu_id}}", xid: "{{xid_code}}"}

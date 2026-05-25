@@ -1,0 +1,16 @@
+name: power_capping_event
+description: Respond to a GPU hitting its power cap and sustaining thermal-induced slowdown.
+trigger: gpu_power_limit_hit
+steps:
+  - action: query_power_state
+    description: Read current and maximum TDP from nvidia-smi.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: reduce_batch_size
+    description: Signal training loop to reduce per-GPU batch size by 20%.
+    params: {job_id: "{{job_id}}", reduction_pct: 20}
+  - action: monitor_power
+    description: Wait for power to stabilize below cap for 30 seconds.
+    params: {gpu_id: "{{gpu_id}}", timeout_s: 60}
+  - action: restore_batch_size
+    description: Restore original batch size after power stabilizes.
+    params: {job_id: "{{job_id}}"}

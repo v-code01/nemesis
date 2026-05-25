@@ -1,0 +1,16 @@
+name: thermal_throttle_recovery
+description: Recover GPU performance after thermal throttling by reducing workload and improving cooling.
+trigger: THERMAL_THROTTLE
+steps:
+  - action: reduce_power_limit
+    description: Lower GPU TDP by 10% to allow thermal recovery.
+    params: {gpu_id: "{{gpu_id}}", reduction_pct: 10}
+  - action: pause_sm_workload
+    description: Temporarily reduce SM utilization to 50% while cooling recovers.
+    params: {gpu_id: "{{gpu_id}}", target_util: 0.5, duration_s: 30}
+  - action: monitor_temperature
+    description: Wait until temperature drops below 80°C before resuming full power.
+    params: {gpu_id: "{{gpu_id}}", threshold_c: 80, timeout_s: 120}
+  - action: restore_power_limit
+    description: Restore original TDP limit after temperature stabilizes.
+    params: {gpu_id: "{{gpu_id}}"}

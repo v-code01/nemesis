@@ -1,0 +1,16 @@
+name: checkpoint_corruption_recovery
+description: Recover from a checkpoint hash mismatch detected at resume time.
+trigger: checkpoint_hash_mismatch
+steps:
+  - action: identify_corrupt_shards
+    description: Scan checkpoint directory and identify shards with SHA256 mismatch.
+    params: {checkpoint_path: "{{checkpoint_path}}"}
+  - action: restore_previous_checkpoint
+    description: Roll back to the last known-good checkpoint (N-1).
+    params: {checkpoint_bucket: "{{checkpoint_bucket}}", job_id: "{{job_id}}"}
+  - action: verify_checkpoint_integrity
+    description: Recompute SHA256 of restored checkpoint and confirm match.
+    params: {checkpoint_path: "{{checkpoint_path}}"}
+  - action: resume_training
+    description: Signal hook to resume from validated checkpoint.
+    params: {job_id: "{{job_id}}"}

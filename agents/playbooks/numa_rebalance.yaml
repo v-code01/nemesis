@@ -1,0 +1,16 @@
+name: numa_rebalance
+description: Rebalance GPU-CPU memory affinity when NUMA domain violation is detected.
+trigger: numa_affinity_violation
+steps:
+  - action: detect_numa_mismatch
+    description: Identify GPUs with memory allocations crossing NUMA boundaries.
+    params: {node_id: "{{node_id}}"}
+  - action: drain_gpu
+    description: Temporarily pause work on affected GPU.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: rebind_numa
+    description: Re-pin GPU memory allocations to local NUMA node via numactl.
+    params: {gpu_id: "{{gpu_id}}", numa_domain: "{{numa_domain}}"}
+  - action: resume_scheduling
+    description: Re-enable GPU after NUMA binding is corrected.
+    params: {gpu_id: "{{gpu_id}}"}

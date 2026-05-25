@@ -1,0 +1,16 @@
+name: compute_timeout
+description: Handle CUDA kernel execution timeout (TDR or watchdog expiry).
+trigger: cuda_timeout
+steps:
+  - action: identify_hung_kernel
+    description: Query DCGM for the PID and kernel name of the timed-out operation.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: checkpoint_jobs
+    description: Save training state from unaffected GPUs before context reset.
+    params: {job_ids: "{{active_job_ids}}"}
+  - action: reset_cuda_context
+    description: Destroy and recreate CUDA context on hung GPU via cudaDeviceReset.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: resume_from_checkpoint
+    description: Restart training from latest checkpoint after context reset.
+    params: {job_id: "{{job_id}}"}

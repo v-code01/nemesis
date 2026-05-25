@@ -1,0 +1,16 @@
+name: gradient_explosion_isolation
+description: Isolate the GPU correlated with a gradient explosion event.
+trigger: gradient_explosion
+steps:
+  - action: identify_explosion_source
+    description: Correlate loss spike timestamp with per-GPU ECC and temperature metrics.
+    params: {job_id: "{{job_id}}", timestamp_ns: "{{event_ns}}"}
+  - action: checkpoint_jobs
+    description: Save model state immediately before explosion corrupts parameters.
+    params: {job_ids: ["{{job_id}}"]}
+  - action: shrink_communicator
+    description: Exclude suspected faulty GPU rank from communicator.
+    params: {communicator_id: "{{communicator_id}}", exclude_ranks: "{{suspect_ranks}}"}
+  - action: resume_from_checkpoint
+    description: Restart training from pre-explosion checkpoint with reduced rank set.
+    params: {job_id: "{{job_id}}"}

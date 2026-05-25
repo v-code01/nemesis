@@ -1,0 +1,16 @@
+name: dram_bandwidth_degradation
+description: Respond to sustained memory bandwidth utilization anomaly.
+trigger: memory_bandwidth_anomaly
+steps:
+  - action: profile_memory_access
+    description: Run nsight memory profiler for 10 seconds to identify access pattern.
+    params: {gpu_id: "{{gpu_id}}", duration_s: 10}
+  - action: check_ecc_errors
+    description: Verify no concurrent ECC errors that could indicate DRAM fault.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: restart_memory_controller
+    description: Reset memory controller via DCGM if bandwidth stays below 60% of spec.
+    params: {gpu_id: "{{gpu_id}}", threshold_pct: 60}
+  - action: notify
+    description: Emit memory anomaly event for operator review.
+    params: {event_kind: MEMORY_ANOMALY, gpu_id: "{{gpu_id}}"}

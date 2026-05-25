@@ -1,0 +1,16 @@
+name: pcie_error_recovery
+description: Recover from PCIe AER (Advanced Error Reporting) correctable or uncorrectable errors.
+trigger: pcie_aer_event
+steps:
+  - action: read_aer_registers
+    description: Read PCIe AER status registers to classify error type.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: drain_gpu
+    description: Stop work to affected GPU while AER is active.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: reset_pcie_link
+    description: Trigger PCIe link reset via sysfs or DCGM.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: verify_link_width
+    description: Confirm PCIe link width returns to x16 (not degraded to x8 or lower).
+    params: {gpu_id: "{{gpu_id}}", min_width: 16}

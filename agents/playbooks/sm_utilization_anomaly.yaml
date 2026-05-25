@@ -1,0 +1,16 @@
+name: sm_utilization_anomaly
+description: Investigate and recover from unexpected SM utilization drop.
+trigger: sm_utilization_drop
+steps:
+  - action: check_compute_hang
+    description: Query DCGM for compute hang or watchdog timeout.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: profile_kernel_activity
+    description: Sample running kernels to detect serialization or launch overhead.
+    params: {gpu_id: "{{gpu_id}}", duration_s: 5}
+  - action: reset_compute_context
+    description: Reset CUDA context if SM utilization stays below 20% for 60s.
+    params: {gpu_id: "{{gpu_id}}", threshold_pct: 20, window_s: 60}
+  - action: notify
+    description: Emit SM anomaly event.
+    params: {event_kind: SM_ANOMALY, gpu_id: "{{gpu_id}}"}

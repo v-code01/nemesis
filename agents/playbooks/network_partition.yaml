@@ -1,0 +1,16 @@
+name: network_partition
+description: Handle a node becoming unreachable from the control plane.
+trigger: node_unreachable
+steps:
+  - action: verify_partition
+    description: Confirm node is unreachable via both IB and Ethernet paths.
+    params: {node_id: "{{node_id}}"}
+  - action: drain_all_gpus_on_node
+    description: Mark all GPUs on the partitioned node as unhealthy in cluster graph.
+    params: {node_id: "{{node_id}}"}
+  - action: shrink_all_communicators
+    description: Exclude all ranks on the unreachable node from active communicators.
+    params: {node_id: "{{node_id}}"}
+  - action: notify
+    description: Emit node partition event with affected jobs list.
+    params: {event_kind: NODE_PARTITION, node_id: "{{node_id}}"}

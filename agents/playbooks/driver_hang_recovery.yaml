@@ -1,0 +1,16 @@
+name: driver_hang_recovery
+description: Recover from a GPU driver hang detected by DCGM watchdog.
+trigger: dcgm_driver_timeout
+steps:
+  - action: drain_gpu
+    description: Stop all new kernel launches to the hung GPU.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: reset_gpu_driver
+    description: Issue GPU reset via DCGM field entity reset API.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: verify_driver_healthy
+    description: Run DCGM health check and confirm no active errors.
+    params: {gpu_id: "{{gpu_id}}", timeout_s: 30}
+  - action: resume_scheduling
+    description: Re-enable GPU for placement after health check passes.
+    params: {gpu_id: "{{gpu_id}}"}

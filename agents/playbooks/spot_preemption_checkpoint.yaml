@@ -1,0 +1,16 @@
+name: spot_preemption_checkpoint
+description: Checkpoint training state and gracefully terminate before spot instance reclamation.
+trigger: spot_interruption_signal
+steps:
+  - action: detect_preemption_signal
+    description: Confirm 2-minute warning signal from cloud metadata endpoint.
+    params: {metadata_url: "{{metadata_url}}"}
+  - action: checkpoint_jobs
+    description: Write full model + optimizer state to persistent storage.
+    params: {job_ids: "{{active_job_ids}}", storage: "{{checkpoint_bucket}}"}
+  - action: drain_gpu
+    description: Halt gradient computation and flush NCCL buffers.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: notify
+    description: Emit spot preemption event so scheduler can reallocate.
+    params: {event_kind: SPOT_PREEMPTION, gpu_id: "{{gpu_id}}"}

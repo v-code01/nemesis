@@ -1,0 +1,16 @@
+name: nvlink_reset
+description: Reset NVLink connections on a GPU with degraded bandwidth.
+trigger: NVLINK_DEGRADED
+steps:
+  - action: drain_gpu
+    description: Stop new work to the affected GPU.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: reset_nvlink
+    description: Issue NVLink reset via DCGM API.
+    params: {gpu_id: "{{gpu_id}}"}
+  - action: verify_bandwidth
+    description: Run p2p bandwidth microbenchmark to confirm recovery (threshold 80% of nominal).
+    params: {gpu_id: "{{gpu_id}}", min_bw_gbps: 480}
+  - action: resume_scheduling
+    description: Re-enable GPU for placement if bandwidth check passes.
+    params: {gpu_id: "{{gpu_id}}"}

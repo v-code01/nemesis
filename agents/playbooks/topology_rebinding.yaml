@@ -1,0 +1,16 @@
+name: topology_rebinding
+description: Rebind job topology when a GPU leaves or joins the active set.
+trigger: topology_change
+steps:
+  - action: get_current_topology
+    description: Fetch live cluster topology from substrate.
+    params: {}
+  - action: rerun_solver
+    description: Re-solve topology spec with updated cluster graph.
+    params: {job_id: "{{job_id}}", topology_dsl: "{{topology_dsl}}"}
+  - action: migrate_ranks
+    description: Move ranks from old GPU assignment to new placement.
+    params: {job_id: "{{job_id}}", new_gpu_ids: "{{new_gpu_ids}}"}
+  - action: verify_placement
+    description: Confirm all ranks are healthy and communicating on new topology.
+    params: {job_id: "{{job_id}}"}

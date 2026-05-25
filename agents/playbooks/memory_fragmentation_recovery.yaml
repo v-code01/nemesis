@@ -1,0 +1,16 @@
+name: memory_fragmentation_recovery
+description: Recover from OOM failures caused by VRAM fragmentation despite sufficient headroom.
+trigger: oom_with_headroom
+steps:
+  - action: measure_fragmentation
+    description: Run torch.cuda.memory_summary() and compute fragmentation ratio.
+    params: {gpu_id: "{{gpu_id}}", job_id: "{{job_id}}"}
+  - action: trigger_gc
+    description: Call torch.cuda.empty_cache() and gc.collect() to coalesce free blocks.
+    params: {gpu_id: "{{gpu_id}}", job_id: "{{job_id}}"}
+  - action: verify_memory_available
+    description: Confirm fragmentation ratio drops below 20% after GC.
+    params: {gpu_id: "{{gpu_id}}", max_frag_ratio: 0.20}
+  - action: resize_allocator
+    description: If fragmentation persists, trigger checkpoint + process restart with PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True.
+    params: {job_id: "{{job_id}}"}

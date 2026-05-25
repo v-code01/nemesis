@@ -1,0 +1,16 @@
+name: ib_congestion_recovery
+description: Mitigate InfiniBand fabric congestion affecting inter-node all-reduce bandwidth.
+trigger: ib_bandwidth_drop
+steps:
+  - action: identify_congested_links
+    description: Query subnet manager for hot-spot links above 95% utilization.
+    params: {fabric: "{{ib_fabric_id}}"}
+  - action: reroute_flows
+    description: Request adaptive routing recomputation from OpenSM.
+    params: {fabric: "{{ib_fabric_id}}"}
+  - action: verify_bandwidth
+    description: Run NCCL all-reduce microbenchmark across affected nodes.
+    params: {job_id: "{{job_id}}", min_bw_gbps: 150}
+  - action: notify
+    description: Emit IB congestion event with affected links.
+    params: {event_kind: IB_CONGESTION, fabric: "{{ib_fabric_id}}"}

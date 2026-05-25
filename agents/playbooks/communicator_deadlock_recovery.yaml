@@ -1,0 +1,16 @@
+name: communicator_deadlock_recovery
+description: Recover from NCCL collective operation timeout (deadlock or rank failure).
+trigger: collective_timeout
+steps:
+  - action: identify_stalled_ranks
+    description: Query healer service for ranks that missed the timeout boundary.
+    params: {communicator_id: "{{communicator_id}}"}
+  - action: checkpoint_jobs
+    description: Save latest model state before recovery disrupts training.
+    params: {job_ids: "{{active_job_ids}}"}
+  - action: shrink_communicator
+    description: Exclude stalled ranks from communicator.
+    params: {communicator_id: "{{communicator_id}}", exclude_ranks: "{{stalled_ranks}}"}
+  - action: resume_training
+    description: Signal hook to continue with reduced communicator.
+    params: {job_id: "{{job_id}}"}
