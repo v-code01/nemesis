@@ -1,0 +1,62 @@
+name: bench-nccl
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install protoc
+        run: sudo apt-get install -y protobuf-compiler
+
+      - name: Build nemesis-sim
+        run: |
+          cd sim/crates/nemesis-sim && cargo build --release
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install agents package
+        run: |
+          pip install grpcio-tools
+          make proto-gen
+          cd agents && pip install -e ".[dev]"
+
+      - name: Run P3 NCCL shrink benchmark
+        run: |
+          mkdir -p results
+          python benchmarks/p3_nccl_shrink/run_full.py \
+            --seed 42 \
+            --output results/nccl.json
+
+      - name: Assert resumption gate (< 30s)
+        run: |
+          python benchmarks/assert_gate.py \
+            --result results/nccl.json \
+            --metric resumption_seconds \
+            --max 30
+
+      - name: Assert restart gate (= 0)
+        run: |
+          python benchmarks/assert_gate.py \
+            --result results/nccl.json \
+            --metric job_restart_count \
+            --max 0
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-nccl-results
+          path: results/nccl.json

@@ -1,0 +1,45 @@
+name: bench-ecc
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install agents package
+        run: |
+          pip install grpcio-tools
+          make proto-gen
+          cd agents && pip install -e ".[dev]"
+
+      - name: Run P1 ECC benchmark
+        run: |
+          mkdir -p results
+          python benchmarks/p1_ecc_prediction/run.py \
+            --seed 42 \
+            --output results/ecc.json
+
+      - name: Assert F1 gate (2h horizon >= 0.90)
+        run: |
+          python benchmarks/assert_gate.py \
+            --result results/ecc.json \
+            --metric f1_2h \
+            --min 0.90
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-ecc-results
+          path: results/ecc.json

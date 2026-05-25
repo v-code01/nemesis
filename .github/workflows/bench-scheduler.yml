@@ -1,0 +1,45 @@
+name: bench-scheduler
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install agents package
+        run: |
+          pip install grpcio-tools
+          make proto-gen
+          cd agents && pip install -e ".[dev]"
+
+      - name: Run P2 MFU benchmark
+        run: |
+          mkdir -p results
+          python benchmarks/p2_scheduler_mfu/run.py \
+            --seed 42 \
+            --output results/mfu.json
+
+      - name: Assert MFU ratio gate (>= 1.4x)
+        run: |
+          python benchmarks/assert_gate.py \
+            --result results/mfu.json \
+            --metric mfu_ratio \
+            --min 1.4
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-scheduler-results
+          path: results/mfu.json
