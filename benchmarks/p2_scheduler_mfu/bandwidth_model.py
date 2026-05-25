@@ -18,7 +18,7 @@ class BandwidthModel:
     bw_gbps: float
     n_gpus: int
 
-    def all_reduce_ns(self, bytes_: int) -> float:
+    def all_reduce_ns(self, bytes_: float) -> float:
         """Ring all-reduce latency: 2*(N-1)/N * bytes / bandwidth."""
         bw_bytes_s = self.bw_gbps * 1e9 / 8
         return 2 * (self.n_gpus - 1) / self.n_gpus * bytes_ / bw_bytes_s * 1e9
