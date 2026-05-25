@@ -6,7 +6,7 @@ from pathlib import Path
 _GATE = Path(__file__).parent.parent.parent / "benchmarks" / "assert_gate.py"
 
 
-def _run(result: dict, metric: str, *, min_: float = None, max_: float = None, tmp_path) -> subprocess.CompletedProcess:
+def _run(result: dict, metric: str, *, min_: float | None = None, max_: float | None = None, tmp_path) -> subprocess.CompletedProcess:
     out = tmp_path / "result.json"
     out.write_text(json.dumps(result))
     cmd = [sys.executable, str(_GATE), "--result", str(out), "--metric", metric]
