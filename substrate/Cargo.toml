@@ -25,4 +25,4 @@ parking_lot = "0.12"
 async-trait = "0.1"
 uuid        = { version = "1", features = ["v4"] }
 async-stream = "0.3"
-tokio-stream = "0.1"
+tokio-stream = { version = "0.1", features = ["sync"] }
