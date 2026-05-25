@@ -37,7 +37,7 @@ def test_failing_windows_have_positive_labels():
 
 
 def test_compute_f1_perfect():
-    import importlib.util, types
+    import importlib.util
     # Import compute_f1 directly without running main
     spec = importlib.util.spec_from_file_location(
         "run",

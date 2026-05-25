@@ -37,9 +37,9 @@ def main() -> None:
     X, y = generate_dataset(n_healthy=2_000, n_failing=200, seed=args.seed)
 
     n = len(X)
-    n_train, n_val = int(0.8 * n), int(0.9 * n)
+    n_train = int(0.8 * n)
     X_train, y_train = X[:n_train], y[:n_train]
-    X_test, y_test = X[n_val:], y[n_val:]
+    X_test, y_test = X[n_train:], y[n_train:]
 
     train_dl = DataLoader(
         TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train)),
@@ -74,6 +74,10 @@ def main() -> None:
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2))
+
+    if result["f1_2h"] < 0.90:
+        print(f"HARD GATE FAILED: f1_2h={result['f1_2h']} < 0.90", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
