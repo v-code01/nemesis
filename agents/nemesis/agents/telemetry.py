@@ -10,7 +10,7 @@ import grpc
 import numpy as np
 
 from nemesis.grpc import telemetry_pb2, telemetry_pb2_grpc
-from nemesis.models.ecc_predictor import EccPredictor, SEQ_LEN, N_FEATURES, THRESHOLD
+from nemesis.models.ecc_predictor import EccPredictor, SEQ_LEN, THRESHOLD
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class TelemetryAgent:
         if len(buf) > SEQ_LEN:
             del buf[0]
 
-    def _should_publish(self, gpu_id: str, window: np.ndarray) -> bool:
+    def _should_publish(self, _gpu_id: str, window: np.ndarray) -> bool:
         _, p2h, _ = self._model.infer(window)
         return p2h > THRESHOLD
 
