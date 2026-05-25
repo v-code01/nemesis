@@ -13,3 +13,10 @@ tracing       = { workspace = true }
 async-trait   = { workspace = true }
 uuid          = { workspace = true }
 parking_lot   = { workspace = true }
+
+[features]
+# Enable real NCCL hardware backend. Requires NCCL 2.27+ and cudarc at link time.
+cuda = []
+
+[dev-dependencies]
+tokio = { workspace = true }
