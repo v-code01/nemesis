@@ -95,8 +95,8 @@ class TemporalConvNet(nn.Module):
     """
     Stack of TemporalBlocks with exponentially increasing dilation.
 
-    Receptive field: sum over layers of (kernel_size - 1) * dilation.
-    With kernel_size=7, channels=[64,128,128,64]: RF = 2*6*(1+2+4+8) = 180 steps.
+    Receptive field: sum over layers of 2*(kernel_size - 1) * dilation.
+    With kernel_size=7, channels=[64,128,128,64,64]: RF = 2*6*(1+2+4+8+16) = 372 steps.
 
     Inputs:  (batch, num_inputs, seq_len)
     Outputs: (batch, channels[-1], seq_len)
@@ -127,16 +127,20 @@ class EccPredictor(nn.Module):
     Architecture:
         input (batch, 600, 9)
         → transpose → (batch, 9, 600)
-        → TCN([64,128,128,64], kernel_size=7) → (batch, 64, 600)
+        → TCN([64,128,128,64,64], kernel_size=7) → (batch, 64, 600)
         → last timestep → (batch, 64)
         → Linear(64, 3) → Sigmoid → (batch, 3)  ∈ [0,1]
+
+    RF = 2*6*(1+2+4+8+16) = 372 steps. The dilation=16 fifth layer is what lets the
+    model see ECC ramp onset (step ~228) where 2h-failing (ECC≈2.6) and 3h-failing
+    (ECC≈3.6) are distinguishable — they converge to the same value by step 599.
 
     The last-timestep read-out is causal: no future information leaks into inference.
     """
 
     def __init__(self) -> None:
         super().__init__()
-        self.tcn = TemporalConvNet(N_FEATURES, channels=[64, 128, 128, 64], kernel_size=7)
+        self.tcn = TemporalConvNet(N_FEATURES, channels=[64, 128, 128, 64, 64], kernel_size=7)
         self.head = nn.Linear(64, N_HORIZONS)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
