@@ -57,6 +57,28 @@ def test_step_keeps_pg_on_failed_shrink():
     assert result is pg
 
 
+def test_listen_sets_pending_on_high_confidence():
+    hook, _ = _make_hook()
+    event = MagicMock()
+    event.confidence = 0.97
+    mock_tel = MagicMock()
+    mock_tel.SubscribeEvents.return_value = iter([event])
+    hook._tel = mock_tel
+    hook._listen()
+    assert hook._shrink_pending.is_set()
+
+
+def test_listen_ignores_low_confidence_events():
+    hook, _ = _make_hook()
+    event = MagicMock()
+    event.confidence = 0.80
+    mock_tel = MagicMock()
+    mock_tel.SubscribeEvents.return_value = iter([event])
+    hook._tel = mock_tel
+    hook._listen()
+    assert not hook._shrink_pending.is_set()
+
+
 def test_close_closes_channel():
     hook, _ = _make_hook()
     hook.close()
