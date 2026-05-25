@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/nemesis-sim"]
+resolver = "2"

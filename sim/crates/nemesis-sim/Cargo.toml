@@ -1,0 +1,25 @@
+[package]
+name = "nemesis-sim"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "nemesis-sim"
+path = "src/main.rs"
+
+[dependencies]
+nemesis-proto     = { path = "../../../substrate/crates/nemesis-proto" }
+nemesis-graph     = { path = "../../../substrate/crates/nemesis-graph" }
+nemesis-telemetry = { path = "../../../substrate/crates/nemesis-telemetry" }
+nemesis-topology  = { path = "../../../substrate/crates/nemesis-topology" }
+nemesis-nccl      = { path = "../../../substrate/crates/nemesis-nccl" }
+tokio             = { version = "1", features = ["full"] }
+tonic             = "0.12"
+serde             = { version = "1", features = ["derive"] }
+serde_yaml        = "0.9"
+anyhow            = "1"
+tracing           = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+parking_lot       = "0.12"
+async-stream      = "0.3"
+tokio-stream      = { version = "0.1", features = ["sync"] }
