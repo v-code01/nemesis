@@ -32,6 +32,7 @@ class NemesisHook:
         self._healer = healer_pb2_grpc.HealerServiceStub(self._channel)
         self._tel = telemetry_pb2_grpc.TelemetryServiceStub(self._channel)
         self._shrink_pending = threading.Event()
+        self._shrink_lock = threading.Lock()
 
         resp = self._healer.RegisterJob(healer_pb2.RegisterJobRequest(
             job_id=job_id, rank=rank, world_size=world_size,
@@ -42,6 +43,12 @@ class NemesisHook:
         t = threading.Thread(target=self._listen, daemon=True)
         t.start()
 
+    def __enter__(self) -> "NemesisHook":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
     def _listen(self) -> None:
         filt = telemetry_pb2.EventFilter(
             kinds=[telemetry_pb2.HardwareEvent.HARDWARE_FAILURE_PREDICTED],
@@ -51,17 +58,21 @@ class NemesisHook:
                 if event.confidence >= 0.95:
                     log.info("NemesisHook: high-confidence prediction, priming shrink")
                     self._shrink_pending.set()
-        except grpc.RpcError:
-            pass  # channel closed on hook.close()
+        except grpc.RpcError as exc:
+            status = exc.code() if hasattr(exc, "code") else None
+            if status not in (grpc.StatusCode.CANCELLED, grpc.StatusCode.UNAVAILABLE):
+                log.warning("NemesisHook: _listen terminated unexpectedly: %s", exc)
 
     def step(self, step_idx: int, process_group: object | None = None) -> object | None:
-        """No-op in normal path (O(1) atomic check).
+        """No-op in normal path (O(1) lock + flag check).
         Blocks <30s during shrink; returns None so caller rebuilds process group.
+        exclude_ranks is empty: server derives affected ranks from the gpu_id in the event.
         """
-        if not self._shrink_pending.is_set():
-            return process_group
+        with self._shrink_lock:
+            if not self._shrink_pending.is_set():
+                return process_group
+            self._shrink_pending.clear()
 
-        self._shrink_pending.clear()
         log.info("NemesisHook: executing shrink at step %d", step_idx)
         result = self._healer.ShrinkCommunicator(healer_pb2.ShrinkRequest(
             communicator_id=self._comm_id,

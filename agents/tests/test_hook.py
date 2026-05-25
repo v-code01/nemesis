@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, patch
+import grpc
 from nemesis.hook import NemesisHook
 
 
@@ -12,7 +13,8 @@ def _make_hook(comm_id: str = "comm-001") -> tuple[NemesisHook, MagicMock]:
     with patch("nemesis.hook.grpc.insecure_channel", return_value=mock_channel), \
          patch("nemesis.hook.healer_pb2_grpc.HealerServiceStub", return_value=mock_healer), \
          patch("nemesis.hook.telemetry_pb2_grpc.TelemetryServiceStub", return_value=mock_tel), \
-         patch("nemesis.hook.threading.Thread"):
+         patch("nemesis.hook.threading.Thread") as mock_thread_cls:
+        mock_thread_cls.return_value = MagicMock(daemon=None)
         hook = NemesisHook(job_id="job-1", substrate="localhost:50051", rank=0, world_size=8)
 
     return hook, mock_healer
@@ -21,7 +23,7 @@ def _make_hook(comm_id: str = "comm-001") -> tuple[NemesisHook, MagicMock]:
 def test_register_job_called_on_init():
     _, mock_healer = _make_hook("comm-007")
     mock_healer.RegisterJob.assert_called_once()
-    call_args = mock_healer.RegisterJob.call_args[0][0]
+    call_args = mock_healer.RegisterJob.call_args.args[0]
     assert call_args.job_id == "job-1"
     assert call_args.rank == 0
     assert call_args.world_size == 8
@@ -30,6 +32,26 @@ def test_register_job_called_on_init():
 def test_comm_id_stored():
     hook, _ = _make_hook("comm-abc")
     assert hook._comm_id == "comm-abc"
+
+
+def test_daemon_thread_started():
+    mock_channel = MagicMock()
+    mock_healer = MagicMock()
+    mock_healer.RegisterJob.return_value = MagicMock(communicator_id="c-1")
+    mock_tel = MagicMock()
+    mock_tel.SubscribeEvents.return_value = iter([])
+
+    with patch("nemesis.hook.grpc.insecure_channel", return_value=mock_channel), \
+         patch("nemesis.hook.healer_pb2_grpc.HealerServiceStub", return_value=mock_healer), \
+         patch("nemesis.hook.telemetry_pb2_grpc.TelemetryServiceStub", return_value=mock_tel), \
+         patch("nemesis.hook.threading.Thread") as mock_thread_cls:
+        mock_t = MagicMock()
+        mock_thread_cls.return_value = mock_t
+        NemesisHook(job_id="job-1", substrate="localhost:50051")
+
+    _, kwargs = mock_thread_cls.call_args
+    assert kwargs.get("daemon") is True
+    mock_t.start.assert_called_once()
 
 
 def test_step_noop_when_no_shrink_pending():
@@ -79,7 +101,24 @@ def test_listen_ignores_low_confidence_events():
     assert not hook._shrink_pending.is_set()
 
 
+def test_listen_exits_cleanly_on_rpc_error():
+    hook, _ = _make_hook()
+    mock_tel = MagicMock()
+    mock_tel.SubscribeEvents.side_effect = grpc.RpcError()
+    hook._tel = mock_tel
+    hook._listen()  # must not raise
+    assert not hook._shrink_pending.is_set()
+
+
 def test_close_closes_channel():
     hook, _ = _make_hook()
     hook.close()
     hook._channel.close.assert_called_once()
+
+
+def test_context_manager_calls_close():
+    hook, _ = _make_hook()
+    with patch.object(hook, "close") as mock_close:
+        with hook:
+            pass
+    mock_close.assert_called_once()
