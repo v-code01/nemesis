@@ -12,6 +12,8 @@ nemesis-proto     = { path = "../nemesis-proto" }
 nemesis-telemetry = { path = "../nemesis-telemetry" }
 nemesis-topology  = { path = "../nemesis-topology" }
 nemesis-nccl      = { path = "../nemesis-nccl" }
+nemesis-graph     = { path = "../nemesis-graph" }
+parking_lot       = { workspace = true }
 tokio             = { workspace = true }
 tonic             = { workspace = true }
 anyhow            = { workspace = true }
