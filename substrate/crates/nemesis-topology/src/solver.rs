@@ -129,11 +129,10 @@ impl TopologySolver {
 
             ParallelDim::Dp(n) => {
                 // DP has no topological constraint beyond needing N healthy GPUs.
-                let ids: Vec<String> = graph
-                    .healthy_gpu_ids()
-                    .into_iter()
-                    .take(*n as usize)
-                    .collect();
+                // Sort for deterministic placement across calls.
+                let mut all_healthy = graph.healthy_gpu_ids();
+                all_healthy.sort();
+                let ids: Vec<String> = all_healthy.into_iter().take(*n as usize).collect();
 
                 if ids.len() == *n as usize {
                     PlacementResult::ok(ids)
@@ -147,19 +146,23 @@ impl TopologySolver {
         }
     }
 
-    /// Solve a `Conjunction`: both arms must succeed independently.
-    ///
-    /// GPU sets are concatenated. In a real scheduler the allocator would
-    /// need to ensure disjointness; that invariant is enforced at reservation
-    /// time in the service layer, not here.
+    /// Solve a `Conjunction`: both arms must succeed independently and with disjoint GPUs.
     fn solve_conjunction(&self, l: &TopologySpec, r: &TopologySpec) -> PlacementResult {
         let left = self.solve(l);
         if !left.placed {
-            return left; // short-circuit: no point trying right
+            return left;
         }
         let right = self.solve(r);
         if !right.placed {
             return right;
+        }
+        // Enforce disjointness: conjunction arms must not share GPUs.
+        let left_set: std::collections::HashSet<&str> =
+            left.gpu_ids.iter().map(String::as_str).collect();
+        if right.gpu_ids.iter().any(|id| left_set.contains(id.as_str())) {
+            return PlacementResult::rejected(
+                "conjunction arms overlap: insufficient distinct GPUs for both dimensions",
+            );
         }
         let mut combined = left.gpu_ids;
         combined.extend(right.gpu_ids);
@@ -169,15 +172,20 @@ impl TopologySolver {
     /// Solve a `Disjunction`: try each alternative in declaration order; return
     /// the first successful placement.
     ///
-    /// If all alternatives fail, return a rejection that names the strategy.
+    /// If all alternatives fail, return a rejection listing each alternative's reason.
     fn solve_disjunction(&self, alts: &[TopologySpec]) -> PlacementResult {
+        let mut reasons = Vec::with_capacity(alts.len());
         for alt in alts {
             let result = self.solve(alt);
             if result.placed {
                 return result;
             }
+            reasons.push(result.rejection_reason);
         }
-        PlacementResult::rejected("no alternative could be placed on the current cluster")
+        PlacementResult::rejected(format!(
+            "no alternative could be placed on the current cluster; tried: [{}]",
+            reasons.join("; ")
+        ))
     }
 }
 
@@ -276,6 +284,9 @@ mod tests {
         let r = solver.solve(&spec);
         assert!(r.placed, "rejection: {}", r.rejection_reason);
         assert_eq!(r.gpu_ids.len(), 6);
+        // Conjunction arms must be disjoint
+        let unique: std::collections::HashSet<&str> = r.gpu_ids.iter().map(String::as_str).collect();
+        assert_eq!(unique.len(), 6, "conjunction arms returned overlapping gpu_ids");
     }
 
     #[test]

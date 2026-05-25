@@ -8,10 +8,9 @@
 //!   - `ClusterGraph` mutations (mark_unhealthy etc.) happen from the telemetry service;
 //!     both services share the same `Arc<RwLock<ClusterGraph>>`.
 //!   - `validate` and `get_topology` acquire only a read lock.
-//!   - `schedule` acquires a read lock for solving, then a write lock on `reserved` to
-//!     record the assignment.  The two locks are never held simultaneously to prevent
-//!     lock-order inversion.
-//!   - `release` acquires a write lock on `reserved` only.
+//!   - `schedule` acquires the `reserved` write lock before calling the solver and holds
+//!     it through the insert, serialising all placement decisions for Phase 1 correctness.
+//!   - `release` is a Phase 1 stub; no GPU reservations are removed.
 
 use crate::{checker::type_check, parser::parse, solver::TopologySolver};
 use nemesis_graph::ClusterGraph;
@@ -84,50 +83,50 @@ impl SchedulerService for SchedulerServiceImpl {
         Ok(Response::new(result))
     }
 
-    /// Parse, type-check, and solve the DSL; reserve the assigned GPUs on success.
-    ///
-    /// Returns a `PlacementResult` with `placed = false` and a non-empty
-    /// `rejection_reason` if any step fails.
     async fn schedule(
         &self,
         request: Request<JobSpec>,
     ) -> Result<Response<ProtoPlacementResult>, Status> {
         let job = request.get_ref();
-        let spec = parse(&job.topology_dsl).map_err(Status::invalid_argument)?;
-
+        let spec = parse(&job.topology_dsl).map_err(|e| Status::invalid_argument(e))?;
         let errors = type_check(&spec);
         if !errors.is_empty() {
             return Ok(Response::new(ProtoPlacementResult {
-                placed:           false,
-                gpu_ids:          vec![],
+                placed: false,
+                gpu_ids: vec![],
                 rejection_reason: errors.join("; "),
-                subgraph:         None,
+                subgraph: None,
             }));
         }
-
+        // Hold the write lock for the entire solve + insert to prevent double-allocation
+        // across concurrent RPCs. Serialised scheduling is correct for Phase 1.
+        let mut reserved = self.reserved.write();
         let result = self.solver.solve(&spec);
-
         if result.placed {
-            // Record reservation.  We hold the reserved write lock only after the
-            // solver has released its read lock on the graph.
-            let mut reserved = self.reserved.write();
+            // Post-solve conflict check: another RPC may have allocated these GPUs
+            // between when the graph was read and now.
+            if result.gpu_ids.iter().any(|id| reserved.contains(id)) {
+                return Ok(Response::new(ProtoPlacementResult {
+                    placed: false,
+                    gpu_ids: vec![],
+                    rejection_reason: "GPUs already reserved by a concurrent job".to_string(),
+                    subgraph: None,
+                }));
+            }
             for id in &result.gpu_ids {
                 reserved.insert(id.clone());
             }
         }
-
         Ok(Response::new(ProtoPlacementResult {
-            placed:           result.placed,
-            gpu_ids:          result.gpu_ids,
+            placed: result.placed,
+            gpu_ids: result.gpu_ids,
             rejection_reason: result.rejection_reason,
-            subgraph:         None,
+            subgraph: None,
         }))
     }
 
-    /// Release GPUs previously reserved by a job.
-    ///
-    /// The current implementation removes all gpu_ids listed in the request
-    /// from the reservation set.  Silently ignores ids that were not reserved.
+    // Phase 1 stub: release does not yet remove GPU reservations.
+    // Full implementation requires a job_id → gpu_ids map (Phase 2).
     async fn release(
         &self,
         request: Request<ReleaseRequest>,
