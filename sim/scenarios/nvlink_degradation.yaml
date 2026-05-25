@@ -1,5 +1,5 @@
 # NVLink bandwidth degradation scenario — validates NVLINK_DEGRADED event and nvlink_reset playbook
-# gpu-3 bandwidth drops to 30% of nominal over 1 hour
+# gpu-3 bandwidth drops to 10% of nominal (60 Gbps from 600 Gbps) over 1 hour
 scenario: nvlink_degradation
 description: NVLink bandwidth on gpu-3 degrades to 10% of nominal — validates NVLINK_DEGRADED event and playbook
 seed: 42
