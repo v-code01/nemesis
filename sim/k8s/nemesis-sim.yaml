@@ -63,3 +63,23 @@ data:
       topology: nvlink_full
       nvlink_gbps: 600.0
       ib_gbps: 200.0
+  spot_preemption.yaml: |
+    scenario: spot_preemption
+    seed: 42
+    time_scale: 100.0
+    port: 50051
+    cluster:
+      gpu_count: 8
+      topology: nvlink_full
+      nvlink_gbps: 600.0
+      ib_gbps: 200.0
+  nvlink_degradation.yaml: |
+    scenario: nvlink_degradation
+    seed: 42
+    time_scale: 100.0
+    port: 50051
+    cluster:
+      gpu_count: 8
+      topology: nvlink_full
+      nvlink_gbps: 600.0
+      ib_gbps: 200.0

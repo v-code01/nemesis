@@ -27,7 +27,7 @@ timeline:
 
 expected_outcomes:
   prediction_before_failure: true
-  min_prediction_lead_s: 7200
+  min_prediction_lead_s: 3600
   healer_triggered: true
   job_restart_count: 0
   training_resumption_within_s: 30

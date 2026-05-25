@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nemesis-scenarios
+  name: nemesis-scenarios-nvlink
 data:
   bench.yaml: |
     scenario: scheduler_benchmark_nvlink
