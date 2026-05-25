@@ -1,5 +1,4 @@
 from unittest.mock import MagicMock, patch
-import pytest
 from nemesis.hook import NemesisHook
 
 
@@ -20,7 +19,7 @@ def _make_hook(comm_id: str = "comm-001") -> tuple[NemesisHook, MagicMock]:
 
 
 def test_register_job_called_on_init():
-    hook, mock_healer = _make_hook("comm-007")
+    _, mock_healer = _make_hook("comm-007")
     mock_healer.RegisterJob.assert_called_once()
     call_args = mock_healer.RegisterJob.call_args[0][0]
     assert call_args.job_id == "job-1"
