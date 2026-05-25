@@ -3,6 +3,7 @@ name: bench-nccl
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -15,6 +16,18 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.78"
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            sim/crates/nemesis-sim/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Install protoc
         run: sudo apt-get install -y protobuf-compiler
@@ -27,6 +40,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install agents package
         run: |
@@ -34,9 +48,11 @@ jobs:
           make proto-gen
           cd agents && pip install -e ".[dev]"
 
+      - name: Create results directory
+        run: mkdir -p results
+
       - name: Run P3 NCCL shrink benchmark
         run: |
-          mkdir -p results
           python benchmarks/p3_nccl_shrink/run_full.py \
             --seed 42 \
             --output results/nccl.json

@@ -3,6 +3,7 @@ name: bench-ecc
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -17,6 +18,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install agents package
         run: |
@@ -24,9 +26,11 @@ jobs:
           make proto-gen
           cd agents && pip install -e ".[dev]"
 
+      - name: Create results directory
+        run: mkdir -p results
+
       - name: Run P1 ECC benchmark
         run: |
-          mkdir -p results
           python benchmarks/p1_ecc_prediction/run.py \
             --seed 42 \
             --output results/ecc.json
