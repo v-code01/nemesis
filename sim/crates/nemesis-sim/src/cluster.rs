@@ -12,8 +12,9 @@ pub struct SimCluster {
 }
 
 impl SimCluster {
-    pub fn from_config(cfg: &SimConfig) -> Self {
+    pub fn from_config(cfg: &SimConfig) -> anyhow::Result<Self> {
         let spec = &cfg.cluster;
+        anyhow::ensure!(spec.gpu_count > 0, "gpu_count must be > 0, got {}", spec.gpu_count);
         let mut g = ClusterGraph::new();
         let gpu_ids: Vec<String> = (0..spec.gpu_count).map(|i| format!("gpu-{i}")).collect();
         for id in &gpu_ids {
@@ -46,12 +47,12 @@ impl SimCluster {
                 }
             }
         }
-        Self {
+        Ok(Self {
             graph:   Arc::new(RwLock::new(g)),
             gpu_ids,
             config:  spec.clone(),
             seed:    cfg.seed,
-        }
+        })
     }
 
     /// Generate a synthetic `MetricSample` for `gpu_id` at logical time `t_ns`.
@@ -62,7 +63,7 @@ impl SimCluster {
         self.seed = self.seed
             .wrapping_mul(6_364_136_223_846_793_005)
             .wrapping_add(1_442_695_040_888_963_407);
-        let jitter = ((self.seed >> 40) as f32) / (u32::MAX as f32) * 0.02;
+        let jitter = (self.seed as f64 / u64::MAX as f64) as f32 * 0.02;
         MetricSample {
             gpu_id:                       gpu_id.to_string(),
             timestamp_ns:                 t_ns,
@@ -70,7 +71,7 @@ impl SimCluster {
             ecc_uncorrectable_rate:       0.0,
             temperature_celsius:          72.0 + jitter * 5.0,
             nvlink_bandwidth_gbps:        self.config.nvlink_gbps * (0.95 + jitter),
-            ib_bandwidth_gbps:            200.0 * (0.98 + jitter),
+            ib_bandwidth_gbps:            self.config.ib_gbps * (0.98 + jitter),
             sm_utilization:               0.85 + jitter,
             memory_bandwidth_utilization: 0.78 + jitter,
         }

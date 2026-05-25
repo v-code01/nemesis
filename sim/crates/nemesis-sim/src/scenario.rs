@@ -5,11 +5,10 @@
 //! inject into the metric stream.  This module owns only deserialization; the
 //! replay loop is a future extension.
 
-#![allow(dead_code)]
-
 use serde::Deserialize;
 use std::path::Path;
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Scenario {
     pub scenario:    String,
@@ -17,6 +16,7 @@ pub struct Scenario {
     pub timeline:    Vec<TimelineEvent>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct TimelineEvent {
     pub t:      String,
@@ -28,14 +28,16 @@ pub struct TimelineEvent {
 impl TimelineEvent {
     /// Parse the `t` field (e.g. `"30s"`) into whole seconds.
     ///
-    /// Strips a trailing `'s'` suffix before parsing; returns 0 on parse failure
-    /// rather than panicking, so malformed YAML produces a no-op rather than a crash.
-    pub fn t_seconds(&self) -> u64 {
-        self.t.trim_end_matches('s').parse().unwrap_or(0)
+    /// Returns `None` if the field is missing the `'s'` suffix or is not a valid integer,
+    /// so callers can distinguish a parse failure from a legitimate zero-second timestamp.
+    #[allow(dead_code)]
+    pub fn t_seconds(&self) -> Option<u64> {
+        self.t.trim_end_matches('s').parse().ok()
     }
 }
 
 /// Load and deserialise a scenario YAML file.
+#[allow(dead_code)]
 pub fn load_scenario(path: &Path) -> anyhow::Result<Scenario> {
     let content = std::fs::read_to_string(path)?;
     Ok(serde_yaml::from_str(&content)?)

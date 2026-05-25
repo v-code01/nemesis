@@ -17,6 +17,7 @@ use nemesis_telemetry::store::TelemetryStore;
 use services::healer::HealerServiceImpl;
 use services::telemetry::TelemetryServiceImpl;
 use services::topology::SchedulerServiceImpl;
+use anyhow::Context;
 use std::{net::SocketAddr, time::Duration};
 use tonic::transport::Server;
 
@@ -28,9 +29,20 @@ async fn main() -> anyhow::Result<()> {
 
     let config_path = std::env::args().skip_while(|a| a != "--config").nth(1);
     let cfg: SimConfig = match config_path {
-        Some(p) => serde_yaml::from_str(&std::fs::read_to_string(&p)?)?,
+        Some(ref p) => {
+            let content = std::fs::read_to_string(p)
+                .with_context(|| format!("reading sim config from '{p}'"))?;
+            serde_yaml::from_str(&content)
+                .with_context(|| format!("parsing sim config YAML from '{p}'"))?
+        }
         None => SimConfig::default(),
     };
+
+    anyhow::ensure!(
+        cfg.time_scale > 0.0 && cfg.time_scale.is_finite(),
+        "time_scale must be a finite positive number, got {}",
+        cfg.time_scale
+    );
 
     let addr: SocketAddr = format!("[::1]:{}", cfg.port).parse()?;
     tracing::info!(
@@ -40,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
         "nemesis-sim starting"
     );
 
-    let mut sim_cluster = SimCluster::from_config(&cfg);
+    let mut sim_cluster = SimCluster::from_config(&cfg)?;
     let graph = sim_cluster.graph.clone();
     let store = TelemetryStore::new();
 
@@ -50,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
     let store_bg = store.clone();
     let gpu_ids = sim_cluster.gpu_ids.clone();
     let time_scale = cfg.time_scale;
-    tokio::spawn(async move {
+    let metric_task = tokio::spawn(async move {
         let interval_ms = (100.0 / time_scale).max(1.0) as u64;
         let mut t_ns: u64 = 0;
         loop {
@@ -77,6 +89,8 @@ async fn main() -> anyhow::Result<()> {
             tracing::info!("shutdown signal received");
         })
         .await?;
+
+    metric_task.abort();
 
     Ok(())
 }

@@ -7,8 +7,7 @@
 //! This module is intentional public API for scenario-level bandwidth
 //! analysis and is not yet wired into the main simulation loop.
 
-#![allow(dead_code)]
-
+#[allow(dead_code)]
 pub struct BandwidthModel {
     pub nvlink_a100_gbps: f64,
     pub pcie_gen4_gbps:   f64,
@@ -27,6 +26,7 @@ impl Default for BandwidthModel {
     }
 }
 
+#[allow(dead_code)]
 impl BandwidthModel {
     /// Ring all-reduce time in nanoseconds.
     ///
