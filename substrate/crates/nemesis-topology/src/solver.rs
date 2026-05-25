@@ -37,13 +37,13 @@ pub struct PlacementResult {
 impl PlacementResult {
     /// Construct a successful placement.
     #[inline]
-    fn ok(gpu_ids: Vec<String>) -> Self {
+    pub fn ok(gpu_ids: Vec<String>) -> Self {
         Self { placed: true, gpu_ids, rejection_reason: String::new() }
     }
 
     /// Construct a failed placement with a reason.
     #[inline]
-    fn rejected(reason: impl Into<String>) -> Self {
+    pub fn rejected(reason: impl Into<String>) -> Self {
         Self { placed: false, gpu_ids: Vec::new(), rejection_reason: reason.into() }
     }
 }
@@ -178,5 +178,122 @@ impl TopologySolver {
             }
         }
         PlacementResult::rejected("no alternative could be placed on the current cluster")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nemesis_graph::{ClusterGraph, LinkKind};
+    use parking_lot::RwLock;
+    use std::sync::Arc;
+
+    fn eight_gpu_nvlink_graph() -> Arc<RwLock<ClusterGraph>> {
+        let mut g = ClusterGraph::new();
+        for i in 0..8usize {
+            g.add_gpu(&format!("gpu-{i}"), "node-0", 0);
+        }
+        for i in 0..8usize {
+            for j in (i + 1)..8 {
+                g.add_link(
+                    &format!("gpu-{i}"),
+                    &format!("gpu-{j}"),
+                    LinkKind::NvLink,
+                    600.0,
+                    0,
+                );
+            }
+        }
+        Arc::new(RwLock::new(g))
+    }
+
+    fn four_gpu_ib_graph() -> Arc<RwLock<ClusterGraph>> {
+        let mut g = ClusterGraph::new();
+        for i in 0..4usize {
+            g.add_gpu(&format!("gpu-{i}"), &format!("node-{i}"), 0);
+        }
+        for i in 0..3usize {
+            g.add_link(
+                &format!("gpu-{i}"),
+                &format!("gpu-{}", i + 1),
+                LinkKind::InfiniBand,
+                200.0,
+                1,
+            );
+        }
+        Arc::new(RwLock::new(g))
+    }
+
+    #[test]
+    fn solve_tp8_nvl_succeeds() {
+        let solver = TopologySolver::new(eight_gpu_nvlink_graph());
+        let spec = crate::parser::parse("TP8_NVL12").unwrap();
+        let r = solver.solve(&spec);
+        assert!(r.placed, "rejection: {}", r.rejection_reason);
+        assert_eq!(r.gpu_ids.len(), 8);
+    }
+
+    #[test]
+    fn solve_tp8_nvl_fails_on_small_graph() {
+        // Only 2 GPUs — can't form an 8-GPU clique
+        let mut g = ClusterGraph::new();
+        g.add_gpu("gpu-0", "node-0", 0);
+        g.add_gpu("gpu-1", "node-0", 0);
+        g.add_link("gpu-0", "gpu-1", LinkKind::NvLink, 600.0, 0);
+        let solver = TopologySolver::new(Arc::new(RwLock::new(g)));
+        let spec = crate::parser::parse("TP8_NVL12").unwrap();
+        let r = solver.solve(&spec);
+        assert!(!r.placed);
+        assert!(!r.rejection_reason.is_empty());
+    }
+
+    #[test]
+    fn solve_pp4_ib_succeeds() {
+        let solver = TopologySolver::new(four_gpu_ib_graph());
+        let spec = crate::parser::parse("PP4_IB2").unwrap();
+        let r = solver.solve(&spec);
+        assert!(r.placed, "rejection: {}", r.rejection_reason);
+        assert_eq!(r.gpu_ids.len(), 4);
+    }
+
+    #[test]
+    fn solve_conjunction_tp4_pp2() {
+        // 4-GPU NVLink clique + 2-GPU IB path on same graph
+        let mut g = ClusterGraph::new();
+        for i in 0..4usize {
+            g.add_gpu(&format!("gpu-{i}"), "node-0", 0);
+        }
+        for i in 0..4usize {
+            for j in (i + 1)..4 {
+                g.add_link(&format!("gpu-{i}"), &format!("gpu-{j}"), LinkKind::NvLink, 600.0, 0);
+            }
+        }
+        g.add_gpu("gpu-4", "node-1", 0);
+        g.add_gpu("gpu-5", "node-2", 0);
+        g.add_link("gpu-4", "gpu-5", LinkKind::InfiniBand, 200.0, 1);
+        let solver = TopologySolver::new(Arc::new(RwLock::new(g)));
+        let spec = crate::parser::parse("TP4+PP2").unwrap();
+        let r = solver.solve(&spec);
+        assert!(r.placed, "rejection: {}", r.rejection_reason);
+        assert_eq!(r.gpu_ids.len(), 6);
+    }
+
+    #[test]
+    fn solve_disjunction_takes_first() {
+        let solver = TopologySolver::new(eight_gpu_nvlink_graph());
+        // Both alternatives can be placed; first (TP8_NVL12) should win
+        let spec = crate::parser::parse("TP8_NVL12|TP8_NVL50").unwrap();
+        let r = solver.solve(&spec);
+        assert!(r.placed, "rejection: {}", r.rejection_reason);
+        assert_eq!(r.gpu_ids.len(), 8);
+    }
+
+    #[test]
+    fn solve_dp_any() {
+        let solver = TopologySolver::new(eight_gpu_nvlink_graph());
+        let spec = crate::parser::parse("DP4").unwrap();
+        let r = solver.solve(&spec);
+        assert!(r.placed, "rejection: {}", r.rejection_reason);
+        assert_eq!(r.gpu_ids.len(), 4);
     }
 }
