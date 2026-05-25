@@ -96,7 +96,7 @@ class TemporalConvNet(nn.Module):
     Stack of TemporalBlocks with exponentially increasing dilation.
 
     Receptive field: sum over layers of (kernel_size - 1) * dilation.
-    With kernel_size=7, channels=[64,128,128,64]: RF = 6*(1+2+4+8) = 90 steps.
+    With kernel_size=7, channels=[64,128,128,64]: RF = 2*6*(1+2+4+8) = 180 steps.
 
     Inputs:  (batch, num_inputs, seq_len)
     Outputs: (batch, channels[-1], seq_len)
@@ -162,12 +162,16 @@ class EccPredictor(nn.Module):
         Returns:
             (p_1h, p_2h, p_3h) — scalar failure probabilities in [0, 1]
         """
+        was_training = self.training
         self.eval()
-        with torch.no_grad():
-            probs = self.forward(
-                torch.from_numpy(window).float().unsqueeze(0)
-            ).squeeze(0)
-        return float(probs[0]), float(probs[1]), float(probs[2])
+        try:
+            with torch.no_grad():
+                probs = self.forward(
+                    torch.from_numpy(window).float().unsqueeze(0)
+                ).squeeze(0)
+            return float(probs[0]), float(probs[1]), float(probs[2])
+        finally:
+            self.train(was_training)
 
     def explain(self, window: np.ndarray) -> dict[str, float]:
         """
@@ -183,15 +187,20 @@ class EccPredictor(nn.Module):
             dict mapping each feature name → normalised importance in [0, 1]
             (values sum to 1.0 within 1e-4 tolerance)
         """
+        was_training = self.training
         self.eval()
-        x = torch.from_numpy(window).float().unsqueeze(0).requires_grad_(True)
-        # Backprop through p_2h (index 1) for single sample
-        self.forward(x)[0, 1].backward()
-        # Mean absolute gradient over time dimension → (N_FEATURES,)
-        grad = x.grad.squeeze(0).abs().mean(dim=0)
-        # L1-normalise; epsilon prevents division-by-zero on zero-gradient inputs
-        total = grad.sum().item() + 1e-9
-        return {name: float(grad[i]) / total for i, name in enumerate(FEATURE_NAMES)}
+        try:
+            x = torch.from_numpy(window).float().unsqueeze(0).requires_grad_(True)
+            # Backprop through p_2h (index 1) for single sample
+            self.forward(x)[0, 1].backward()
+            assert x.grad is not None, "backward() did not populate x.grad"
+            # Mean absolute gradient over time dimension → (N_FEATURES,)
+            grad = x.grad.squeeze(0).abs().mean(dim=0)
+            # L1-normalise; epsilon prevents division-by-zero on zero-gradient inputs
+            total = grad.sum().item() + 1e-9
+            return {name: float(grad[i]) / total for i, name in enumerate(FEATURE_NAMES)}
+        finally:
+            self.train(was_training)
 
     def save(self, path: str | Path) -> None:
         """Persist model weights to disk."""

@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import pytest
 from nemesis.models.ecc_predictor import (
     EccPredictor, TemporalBlock, TemporalConvNet,
     N_FEATURES, SEQ_LEN, THRESHOLD, FEATURE_NAMES,
