@@ -99,8 +99,8 @@ class SchedulerAgent:
                 model=self._model,
                 max_tokens=1024,
                 system=SYSTEM_PROMPT,
-                tools=SCHEDULER_TOOLS,
-                messages=messages,
+                tools=SCHEDULER_TOOLS,  # type: ignore[arg-type]
+                messages=messages,  # type: ignore[arg-type]
             )
 
             if response.stop_reason == "end_turn":

@@ -1,5 +1,4 @@
-from unittest.mock import MagicMock, patch
-import pytest
+from unittest.mock import MagicMock
 from nemesis.agents.scheduler import SchedulerAgent, SCHEDULER_TOOLS, SYSTEM_PROMPT
 
 
