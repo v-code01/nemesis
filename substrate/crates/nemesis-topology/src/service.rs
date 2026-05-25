@@ -88,7 +88,7 @@ impl SchedulerService for SchedulerServiceImpl {
         request: Request<JobSpec>,
     ) -> Result<Response<ProtoPlacementResult>, Status> {
         let job = request.get_ref();
-        let spec = parse(&job.topology_dsl).map_err(|e| Status::invalid_argument(e))?;
+        let spec = parse(&job.topology_dsl).map_err(Status::invalid_argument)?;
         let errors = type_check(&spec);
         if !errors.is_empty() {
             return Ok(Response::new(ProtoPlacementResult {
@@ -129,11 +129,8 @@ impl SchedulerService for SchedulerServiceImpl {
     // Full implementation requires a job_id → gpu_ids map (Phase 2).
     async fn release(
         &self,
-        request: Request<ReleaseRequest>,
+        _request: Request<ReleaseRequest>,
     ) -> Result<Response<Void>, Status> {
-        // ReleaseRequest carries job_id; in a full system we'd look up which
-        // gpu_ids belong to that job.  For now we accept and no-op gracefully.
-        let _ = request.get_ref().job_id.as_str(); // suppress unused warning
         Ok(Response::new(Void {}))
     }
 

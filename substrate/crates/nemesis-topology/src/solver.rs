@@ -3,11 +3,10 @@
 //! Design:
 //!   - `TopologySolver` holds a shared read-lock handle to `ClusterGraph`.
 //!   - `solve` dispatches on the spec variant:
-//!       * Atom   → delegates to `find_nvlink_clique` (TP) or `find_ib_path` (PP)
-//!                  or a greedy healthy-GPU pick (DP).
-//!       * Conjunction → solves each arm independently; GPUs are unioned (may
-//!                       overlap in a real system — callers dedup as needed).
-//!       * Disjunction → tries each alternative in order, returns the first success.
+//!       * Atom — delegates to `find_nvlink_clique` (TP) or `find_ib_path` (PP)
+//!         or a greedy healthy-GPU pick (DP).
+//!       * Conjunction — solves each arm; rejects if arms overlap (disjoint GPU sets required).
+//!       * Disjunction — tries each alternative in order, returns the first success.
 //!
 //! Invariants maintained:
 //!   - The graph is never mutated inside the solver (read-lock only).
