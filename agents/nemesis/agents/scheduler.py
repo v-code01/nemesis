@@ -83,8 +83,10 @@ class SchedulerAgent:
         finally:
             channel.close()
 
+    _MAX_LOOP_ITERATIONS = 10
+
     def _agentic_loop(self, stub: Any, job_id: str, topology_dsl: str, gpu_count: int) -> list[str]:
-        messages: list[dict] = [
+        messages: list[dict[str, Any]] = [
             {
                 "role": "user",
                 "content": (
@@ -94,7 +96,7 @@ class SchedulerAgent:
             }
         ]
 
-        while True:
+        for _ in range(self._MAX_LOOP_ITERATIONS):
             response = self._client.messages.create(
                 model=self._model,
                 max_tokens=1024,
@@ -103,8 +105,8 @@ class SchedulerAgent:
                 messages=messages,  # type: ignore[arg-type]
             )
 
-            if response.stop_reason == "end_turn":
-                log.info("Scheduler completed for %s", job_id)
+            if response.stop_reason in ("end_turn", "max_tokens"):
+                log.info("Scheduler completed for %s (stop_reason=%s)", job_id, response.stop_reason)
                 return []
 
             tool_results = []
@@ -127,7 +129,10 @@ class SchedulerAgent:
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": tool_results})
 
-    def _dispatch_tool(self, stub: Any, name: str, inputs: dict) -> Any:
+        log.error("Scheduler exceeded max iterations for %s", job_id)
+        return []
+
+    def _dispatch_tool(self, stub: Any, name: str, inputs: dict[str, Any]) -> Any:
         if name == "validate_topology":
             r = stub.Validate(topology_pb2.JobSpec(**inputs))
             return {"valid": r.valid, "errors": list(r.errors)}

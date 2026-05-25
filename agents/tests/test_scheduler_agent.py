@@ -57,3 +57,24 @@ def test_dispatch_validate_topology():
     })
     assert result["valid"] is True
     assert result["errors"] == []
+
+
+def test_dispatch_schedule_job_placed():
+    agent = SchedulerAgent("localhost:50051")
+    stub = MagicMock()
+    stub.Schedule.return_value = MagicMock(placed=True, gpu_ids=["gpu-0", "gpu-1"])
+    result = agent._dispatch_tool(stub, "schedule_job", {
+        "job_id": "j1", "topology_dsl": "TP2_NVL2", "gpu_count": 2,
+    })
+    assert result == ["gpu-0", "gpu-1"]
+
+
+def test_dispatch_schedule_job_rejected():
+    agent = SchedulerAgent("localhost:50051")
+    stub = MagicMock()
+    stub.Schedule.return_value = MagicMock(placed=False, rejection_reason="insufficient GPUs")
+    result = agent._dispatch_tool(stub, "schedule_job", {
+        "job_id": "j2", "topology_dsl": "TP8_NVL12", "gpu_count": 8,
+    })
+    assert "error" in result
+    assert result["error"] == "insufficient GPUs"
