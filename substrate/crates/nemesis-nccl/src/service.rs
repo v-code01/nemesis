@@ -64,14 +64,20 @@ impl HealerService for HealerServiceImpl {
     ) -> Result<Response<RegisterJobResponse>, Status> {
         let r = req.into_inner();
         let comm_id = Uuid::new_v4().to_string();
-        self.job_comms
-            .write()
-            .insert(r.job_id.clone(), comm_id.clone());
+        {
+            let mut comms = self.job_comms.write();
+            if let Some(existing) = comms.get(&r.job_id) {
+                tracing::warn!(
+                    job_id = %r.job_id,
+                    old_comm = %existing,
+                    new_comm = %comm_id,
+                    "duplicate register_job: overwriting existing communicator"
+                );
+            }
+            comms.insert(r.job_id.clone(), comm_id.clone());
+        }
         self.world_sizes.write().insert(r.job_id, r.world_size);
-        tracing::info!(comm_id = %comm_id, "job registered");
-        Ok(Response::new(RegisterJobResponse {
-            communicator_id: comm_id,
-        }))
+        Ok(Response::new(RegisterJobResponse { communicator_id: comm_id }))
     }
 
     /// Shrink the NCCL communicator by removing `exclude_ranks`.
@@ -85,6 +91,7 @@ impl HealerService for HealerServiceImpl {
             excluded = r.exclude_ranks.len(),
             "shrink requested"
         );
+        // TODO(Phase 2): validate comm_id against job_comms; reject unknown communicators
         let metrics = self
             .backend
             .shrink(&r)
@@ -109,6 +116,7 @@ impl HealerService for HealerServiceImpl {
             added = r.new_gpu_ids.len(),
             "expand requested"
         );
+        // TODO(Phase 2): validate comm_id against job_comms; reject unknown communicators
         let metrics = self
             .backend
             .expand(&r)

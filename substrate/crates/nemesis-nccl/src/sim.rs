@@ -79,27 +79,33 @@ impl NcclSim {
 impl NcclBackend for NcclSim {
     /// Simulate a shrink: sample latency, sleep ≤ 10 ms, decrement active ranks.
     async fn shrink(&self, req: &ShrinkRequest) -> anyhow::Result<ShrinkMetrics> {
-        // Sample duration while holding the lock for a minimal critical section.
+        let excluded = req.exclude_ranks.len() as u32;
+        // Validate: cannot shrink to zero or below
+        {
+            let state = self.state.lock();
+            if excluded >= state.active_ranks {
+                return Ok(ShrinkMetrics {
+                    success: false,
+                    duration_ns: 0,
+                    active_rank_count: state.active_ranks,
+                    error: format!(
+                        "cannot exclude {excluded} ranks from a communicator with {} active ranks",
+                        state.active_ranks
+                    ),
+                });
+            }
+        }
         let duration_ns = {
             let mut state = self.state.lock();
             Self::seeded_duration_ns(&mut state)
         };
-
-        // Inject a tiny real sleep so async machinery executes; cap at 10 ms so
-        // test suites are not slowed to real NCCL timescales.
-        tokio::time::sleep(tokio::time::Duration::from_nanos(
-            duration_ns.min(MAX_REAL_SLEEP_NS),
-        ))
-        .await;
-
+        // Cap actual sleep at 10ms so tests don't time out
+        tokio::time::sleep(tokio::time::Duration::from_nanos(duration_ns.min(10_000_000))).await;
         let active_rank_count = {
             let mut state = self.state.lock();
-            state.active_ranks = state
-                .active_ranks
-                .saturating_sub(req.exclude_ranks.len() as u32);
+            state.active_ranks -= excluded;
             state.active_ranks
         };
-
         Ok(ShrinkMetrics {
             success: true,
             duration_ns,
@@ -122,7 +128,7 @@ impl NcclBackend for NcclSim {
 
         let active_rank_count = {
             let mut state = self.state.lock();
-            // Saturating add prevents wrapping if ranks somehow exceeds world_size.
+            // grows active_ranks; no upper bound enforced in sim
             state.active_ranks = state
                 .active_ranks
                 .saturating_add(req.new_gpu_ids.len() as u32);

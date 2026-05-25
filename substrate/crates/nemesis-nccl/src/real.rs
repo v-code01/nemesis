@@ -44,7 +44,7 @@ pub mod real {
             Ok(ShrinkMetrics {
                 success: true,
                 duration_ns,
-                active_rank_count: self.world_size - req.exclude_ranks.len() as u32,
+                active_rank_count: self.world_size.saturating_sub(req.exclude_ranks.len() as u32),
                 error: String::new(),
             })
         }
