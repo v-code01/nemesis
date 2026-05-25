@@ -1,0 +1,70 @@
+syntax = "proto3";
+package nemesis.healer.v1;
+
+import "telemetry.proto";
+
+service HealerService {
+  rpc RegisterJob(RegisterJobRequest)                  returns (RegisterJobResponse);
+  rpc ShrinkCommunicator(ShrinkRequest)               returns (ShrinkResult);
+  rpc ExpandCommunicator(ExpandRequest)               returns (ExpandResult);
+  rpc ExecutePlaybook(PlaybookRequest)                returns (PlaybookResult);
+  rpc ListPlaybooks(nemesis.telemetry.v1.Void)        returns (PlaybookLibrary);
+}
+
+message RegisterJobRequest {
+  string job_id     = 1;
+  uint32 rank       = 2;
+  uint32 world_size = 3;
+}
+
+message RegisterJobResponse {
+  string communicator_id = 1;
+}
+
+message ShrinkRequest {
+  string          communicator_id = 1;
+  string          job_id          = 2;
+  repeated uint32 exclude_ranks   = 3;
+}
+
+message ShrinkResult {
+  bool   success           = 1;
+  uint64 duration_ns       = 2;
+  uint32 active_rank_count = 3;
+  string error             = 4;
+}
+
+message ExpandRequest {
+  string          communicator_id = 1;
+  string          job_id          = 2;
+  repeated string new_gpu_ids     = 3;
+}
+
+message ExpandResult {
+  bool   success           = 1;
+  uint64 duration_ns       = 2;
+  uint32 active_rank_count = 3;
+  string error             = 4;
+}
+
+message PlaybookRequest {
+  string              name       = 1;
+  map<string, string> parameters = 2;
+}
+
+message PlaybookResult {
+  bool            success       = 1;
+  uint64          duration_ns   = 2;
+  repeated string actions_taken = 3;
+  string          error         = 4;
+}
+
+message Playbook {
+  string name        = 1;
+  string description = 2;
+  string trigger     = 3;
+}
+
+message PlaybookLibrary {
+  repeated Playbook playbooks = 1;
+}

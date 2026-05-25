@@ -1,0 +1,33 @@
+syntax = "proto3";
+package nemesis.topology.v1;
+
+import "telemetry.proto";
+
+service SchedulerService {
+  rpc Validate(JobSpec)                          returns (ValidationResult);
+  rpc Schedule(JobSpec)                          returns (PlacementResult);
+  rpc Release(ReleaseRequest)                    returns (nemesis.telemetry.v1.Void);
+  rpc GetTopology(nemesis.telemetry.v1.Void)     returns (nemesis.telemetry.v1.ClusterTopology);
+}
+
+message JobSpec {
+  string job_id       = 1;
+  string topology_dsl = 2;
+  uint32 gpu_count    = 3;
+}
+
+message ValidationResult {
+  bool            valid  = 1;
+  repeated string errors = 2;
+}
+
+message PlacementResult {
+  bool                                  placed           = 1;
+  repeated string                       gpu_ids          = 2;
+  string                                rejection_reason = 3;
+  nemesis.telemetry.v1.ClusterTopology  subgraph         = 4;
+}
+
+message ReleaseRequest {
+  string job_id = 1;
+}

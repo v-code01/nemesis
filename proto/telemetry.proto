@@ -1,0 +1,69 @@
+syntax = "proto3";
+package nemesis.telemetry.v1;
+
+service TelemetryService {
+  rpc IngestMetrics(stream MetricSample) returns (stream Void);
+  rpc SubscribeEvents(EventFilter)       returns (stream HardwareEvent);
+  rpc GetClusterState(Void)              returns (ClusterSnapshot);
+  rpc PublishEvent(HardwareEvent)        returns (Void);
+}
+
+message Void {}
+
+message EventFilter {
+  repeated HardwareEvent.Kind kinds = 1;
+}
+
+message ClusterSnapshot {
+  ClusterTopology       topology = 1;
+  repeated MetricSample latest   = 2;
+  fixed64               taken_ns = 3;
+}
+
+message MetricSample {
+  string  gpu_id                       = 1;
+  fixed64 timestamp_ns                 = 2;
+  float   ecc_correctable_rate         = 3;
+  float   ecc_uncorrectable_rate       = 4;
+  float   temperature_celsius          = 5;
+  float   nvlink_bandwidth_gbps        = 6;
+  float   ib_bandwidth_gbps            = 7;
+  float   sm_utilization               = 8;
+  float   memory_bandwidth_utilization = 9;
+}
+
+message HardwareEvent {
+  enum Kind {
+    HARDWARE_FAILURE_PREDICTED = 0;
+    ECC_RATE_ANOMALY           = 1;
+    THERMAL_THROTTLE           = 2;
+    NVLINK_DEGRADED            = 3;
+  }
+  Kind               kind                 = 1;
+  string             gpu_id               = 2;
+  float              confidence           = 3;
+  fixed64            predicted_failure_ns = 4;
+  fixed64            event_ns             = 5;
+  map<string, float> evidence             = 6;
+}
+
+message ClusterTopology {
+  repeated GpuNode nodes = 1;
+  repeated Link    edges = 2;
+}
+
+message GpuNode {
+  string gpu_id      = 1;
+  string node_id     = 2;
+  uint32 numa_domain = 3;
+  bool   healthy     = 4;
+}
+
+message Link {
+  string src            = 1;
+  string dst            = 2;
+  enum Kind { NVLINK = 0; PCIE = 1; INFINIBAND = 2; }
+  Kind   kind           = 3;
+  float  bandwidth_gbps = 4;
+  uint32 ib_hop_count   = 5;
+}
