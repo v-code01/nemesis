@@ -1,0 +1,16 @@
+# ConfigMap for NVLink-topology benchmark cluster (P2 scheduler benchmark)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemesis-scenarios
+data:
+  bench.yaml: |
+    scenario: scheduler_benchmark_nvlink
+    seed: 42
+    time_scale: 100.0
+    port: 50051
+    cluster:
+      gpu_count: 8
+      topology: nvlink_full
+      nvlink_gbps: 600.0
+      ib_gbps: 200.0

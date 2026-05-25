@@ -1,0 +1,16 @@
+# ConfigMap for PCIe-only cross-node benchmark cluster (P2 scheduler benchmark baseline)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemesis-scenarios
+data:
+  bench.yaml: |
+    scenario: scheduler_benchmark_pcie
+    seed: 42
+    time_scale: 100.0
+    port: 50051
+    cluster:
+      gpu_count: 8
+      topology: pcie_cross_node
+      nvlink_gbps: 0.0
+      ib_gbps: 0.0

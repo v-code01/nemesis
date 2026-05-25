@@ -1,0 +1,20 @@
+# Spot instance preemption scenario — validates checkpoint-and-migrate playbook
+# 90s warning window before hard preemption
+scenario: spot_preemption
+description: Spot preemption on node-1 with 90s warning — validates checkpoint-and-migrate playbook
+seed: 42
+
+timeline:
+  - t: 0s
+    action: normal_operation
+  - t: 3600s
+    action: spot_preemption_warning
+    target_node: node-1
+  - t: 3690s
+    action: spot_preemption_execute
+    target_node: node-1
+
+expected_outcomes:
+  checkpoint_created: true
+  data_loss: false
+  migration_within_s: 300

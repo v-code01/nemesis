@@ -1,0 +1,65 @@
+# Kubernetes Deployment + Service + ConfigMap for nemesis-sim
+# Mounts scenarios as a ConfigMap volume
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemesis-sim
+  labels:
+    app: nemesis
+    component: sim
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemesis
+      component: sim
+  template:
+    metadata:
+      labels:
+        app: nemesis
+        component: sim
+    spec:
+      containers:
+      - name: sim
+        image: nemesis/sim:latest
+        imagePullPolicy: IfNotPresent
+        args: ["--config", "/scenarios/ecc_escalation.yaml"]
+        ports:
+        - containerPort: 50051
+          name: grpc
+        volumeMounts:
+        - name: scenarios
+          mountPath: /scenarios
+      volumes:
+      - name: scenarios
+        configMap:
+          name: nemesis-scenarios
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemesis-substrate
+spec:
+  selector:
+    app: nemesis
+    component: sim
+  ports:
+  - port: 50051
+    targetPort: 50051
+    name: grpc
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemesis-scenarios
+data:
+  ecc_escalation.yaml: |
+    scenario: ecc_escalation
+    seed: 42
+    time_scale: 100.0
+    port: 50051
+    cluster:
+      gpu_count: 8
+      topology: nvlink_full
+      nvlink_gbps: 600.0
+      ib_gbps: 200.0

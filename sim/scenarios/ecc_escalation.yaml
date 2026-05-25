@@ -1,0 +1,34 @@
+# ECC error escalation scenario — validates P3 hard gate (ECC prediction)
+# GPU7 correctable rate climbs over 2 hours, then uncorrectable spike at hour 2
+scenario: ecc_escalation
+description: GPU7 ECC correctable rate climbs over 2 hours then uncorrectable spike — validates P3 hard gate
+seed: 42
+
+timeline:
+  - t: 0s
+    gpu: gpu-7
+    action: set_ecc_correctable_rate
+    rate: 0.1
+  - t: 1800s
+    gpu: gpu-7
+    action: set_ecc_correctable_rate
+    rate: 0.8
+  - t: 3600s
+    gpu: gpu-7
+    action: set_ecc_correctable_rate
+    rate: 2.5
+  - t: 5400s
+    gpu: gpu-7
+    action: set_ecc_uncorrectable_rate
+    rate: 0.4
+  - t: 7200s
+    gpu: gpu-7
+    action: hardware_failure
+
+expected_outcomes:
+  prediction_before_failure: true
+  min_prediction_lead_s: 7200
+  healer_triggered: true
+  job_restart_count: 0
+  training_resumption_within_s: 30
+  human_escalations: 0
