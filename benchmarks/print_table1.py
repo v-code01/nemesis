@@ -1,18 +1,28 @@
 #!/usr/bin/env python3
 """Print Table 1 from the paper: all three benchmark results."""
 import json
+import sys
 from pathlib import Path
 
+_RESULTS_DIR = Path(__file__).parent.parent / "results"
 
-def _load(path: str) -> dict:
-    p = Path(path)
-    return json.loads(p.read_text()) if p.exists() else {}
+
+def _load(name: str) -> dict[str, object]:
+    p = _RESULTS_DIR / name
+    if not p.exists():
+        print(f"WARNING: result file not found: {p}", file=sys.stderr)
+        return {}
+    try:
+        return json.loads(p.read_text())
+    except json.JSONDecodeError as exc:
+        print(f"WARNING: malformed JSON in {p}: {exc}", file=sys.stderr)
+        return {}
 
 
 def main() -> None:
-    ecc = _load("results/ecc.json")
-    mfu = _load("results/mfu.json")
-    nccl = _load("results/nccl.json")
+    ecc = _load("ecc.json")
+    mfu = _load("mfu.json")
+    nccl = _load("nccl.json")
 
     sep = "=" * 60
     print(sep)
