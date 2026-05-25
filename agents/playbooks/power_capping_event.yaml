@@ -9,7 +9,7 @@ steps:
     description: Signal training loop to reduce per-GPU batch size by 20%.
     params: {job_id: "{{job_id}}", reduction_pct: 20}
   - action: monitor_power
-    description: Wait for power to stabilize below cap for 30 seconds.
+    description: Wait for power to stabilize below cap for up to 60 seconds.
     params: {gpu_id: "{{gpu_id}}", timeout_s: 60}
   - action: restore_batch_size
     description: Restore original batch size after power stabilizes.

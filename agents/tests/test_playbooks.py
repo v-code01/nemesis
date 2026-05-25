@@ -46,6 +46,7 @@ def test_all_playbooks_have_required_fields():
     required = {"name", "description", "trigger", "steps"}
     for path in _PLAYBOOK_DIR.glob("*.yaml"):
         data = yaml.safe_load(path.read_text())
+        assert isinstance(data, dict), f"{path.name} top-level must be a mapping, got {type(data).__name__}"
         missing = required - set(data.keys())
         assert not missing, f"{path.name} missing fields: {missing}"
 
@@ -56,6 +57,16 @@ def test_all_playbooks_have_nonempty_steps():
         assert len(data["steps"]) >= 1, f"{path.name} has no steps"
 
 
+def test_all_steps_have_action_key():
+    for path in _PLAYBOOK_DIR.glob("*.yaml"):
+        data = yaml.safe_load(path.read_text())
+        for i, step in enumerate(data["steps"]):
+            assert isinstance(step, dict), f"{path.name} step {i} is not a mapping"
+            assert "action" in step, f"{path.name} step {i} missing 'action' key"
+
+
 def test_playbook_count():
-    count = len(list(_PLAYBOOK_DIR.glob("*.yaml")))
-    assert count == 20, f"Expected 20 playbooks, found {count}"
+    names = {p.stem for p in _PLAYBOOK_DIR.glob("*.yaml")}
+    extra = names - set(_REQUIRED_NAMES)
+    assert not extra, f"Unexpected playbooks: {extra}"
+    assert len(names) == 20, f"Expected 20 playbooks, found {len(names)}"
