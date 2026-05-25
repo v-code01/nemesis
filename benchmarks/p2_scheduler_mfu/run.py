@@ -31,7 +31,7 @@ def main() -> None:
     Path(args.output).write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2))
 
-    if result["mfu_ratio"] < 1.4:
+    if (mfu_n / mfu_k) < 1.4:
         print(f"HARD GATE FAILED: mfu_ratio={result['mfu_ratio']} < 1.4", file=sys.stderr)
         sys.exit(1)
 

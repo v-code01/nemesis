@@ -18,6 +18,12 @@ class BandwidthModel:
     bw_gbps: float
     n_gpus: int
 
+    def __post_init__(self) -> None:
+        if self.n_gpus < 1:
+            raise ValueError(f"n_gpus must be >= 1, got {self.n_gpus}")
+        if self.bw_gbps <= 0:
+            raise ValueError(f"bw_gbps must be > 0, got {self.bw_gbps}")
+
     def all_reduce_ns(self, bytes_: float) -> float:
         """Ring all-reduce latency: 2*(N-1)/N * bytes / bandwidth."""
         bw_bytes_s = self.bw_gbps * 1e9 / 8
