@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  substrate:
+    name: Substrate (build + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install protoc
+        run: sudo apt-get install -y protobuf-compiler
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: substrate
+
+      - name: Fmt check
+        run: cd substrate && cargo fmt --all -- --check
+
+      - name: Clippy (zero warnings)
+        run: cd substrate && cargo clippy --workspace -- -D warnings
+
+      - name: Test substrate
+        run: cd substrate && cargo test --workspace
+
+      - name: Test sim
+        run: cd sim/crates/nemesis-sim && cargo test
+
+      - name: Build release binaries
+        run: |
+          cd substrate && cargo build --release
+          cd sim/crates/nemesis-sim && cargo build --release
+
+  bandwidth-model:
+    name: Bandwidth model unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc
+        run: sudo apt-get install -y protobuf-compiler
+      - run: cd sim/crates/nemesis-sim && cargo test bandwidth
