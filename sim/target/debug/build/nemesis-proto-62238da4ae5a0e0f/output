@@ -1,4 +1,0 @@
-cargo:rerun-if-changed=/Users/vanshverma/nemesis/proto/telemetry.proto
-cargo:rerun-if-changed=/Users/vanshverma/nemesis/proto/topology.proto
-cargo:rerun-if-changed=/Users/vanshverma/nemesis/proto/healer.proto
-cargo:rerun-if-changed=/Users/vanshverma/nemesis/proto
