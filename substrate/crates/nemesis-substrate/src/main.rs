@@ -15,14 +15,12 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    let port: u16 = std::env::args()
-        .skip_while(|a| a != "--port")
-        .nth(1)
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(50051);
+    let port: u16 = match std::env::args().skip_while(|a| a != "--port").nth(1) {
+        Some(s) => s.parse::<u16>().map_err(|_| anyhow::anyhow!("invalid --port value: {s}"))?,
+        None => 50051,
+    };
 
     let addr: SocketAddr = format!("[::1]:{port}").parse()?;
-    tracing::info!("nemesis-substrate listening on {addr}");
 
     let graph = Arc::new(RwLock::new(ClusterGraph::new()));
     let store = TelemetryStore::new();
@@ -31,11 +29,15 @@ async fn main() -> anyhow::Result<()> {
     let scheduler_svc = SchedulerServiceImpl::new(graph.clone());
     let healer_svc    = HealerServiceImpl::new_sim(8, 0);
 
+    tracing::info!("nemesis-substrate listening on {addr}");
     Server::builder()
         .add_service(TelemetryServiceServer::new(telemetry_svc))
         .add_service(SchedulerServiceServer::new(scheduler_svc))
         .add_service(HealerServiceServer::new(healer_svc))
-        .serve(addr)
+        .serve_with_shutdown(addr, async {
+            tokio::signal::ctrl_c().await.ok();
+            tracing::info!("shutdown signal received");
+        })
         .await?;
 
     Ok(())
