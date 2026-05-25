@@ -1,7 +1,3 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 def test_telemetry_stubs_importable():
     from nemesis.grpc import telemetry_pb2, telemetry_pb2_grpc
     assert hasattr(telemetry_pb2, "HardwareEvent")

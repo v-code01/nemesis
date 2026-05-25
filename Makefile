@@ -17,6 +17,7 @@ build:
 test:
 	cd substrate && cargo test --workspace
 	cd sim/crates/nemesis-sim && cargo test
+	cd agents && pytest tests/ -v
 
 sim:
 	minikube start --cpus=4 --memory=8g --driver=docker 2>/dev/null || true
