@@ -34,7 +34,7 @@ def main() -> None:
     ap.add_argument("--output", required=True)
     args = ap.parse_args()
 
-    X, y = generate_dataset(n_healthy=10_000, n_failing=1_000, seed=args.seed)
+    X, y = generate_dataset(n_healthy=2_000, n_failing=200, seed=args.seed)
 
     n = len(X)
     n_train, n_val = int(0.8 * n), int(0.9 * n)
