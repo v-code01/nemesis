@@ -1,8 +1,10 @@
 """P3 benchmark: start nemesis-sim, register a job, trigger ShrinkCommunicator, measure resumption time."""
 import argparse
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -15,9 +17,9 @@ sys.path.insert(0, str(_ROOT / "agents"))
 from nemesis.grpc import healer_pb2, healer_pb2_grpc, telemetry_pb2
 
 _SIM_BIN = _ROOT / "sim" / "target" / "release" / "nemesis-sim"
-_SCENARIO = _ROOT / "sim" / "scenarios" / "ecc_escalation.yaml"
 _SIM_PORT = 50052
-_SIM_ADDR = f"localhost:{_SIM_PORT}"
+# Sim binds to [::1]:{port} — use explicit IPv6 loopback so gRPC doesn't try 127.0.0.1 first
+_SIM_ADDR = f"[::1]:{_SIM_PORT}"
 _SIM_STARTUP_TIMEOUT_S = 30.0
 _SIM_POLL_INTERVAL_S = 0.3
 _SIM_SHUTDOWN_TIMEOUT_S = 10
@@ -43,14 +45,24 @@ def main() -> None:
         print(f"ERROR: sim binary not found at {_SIM_BIN}. Run: make build", file=sys.stderr)
         sys.exit(1)
 
+    # Sim only accepts --config <yaml>; individual flags are silently ignored.
+    # time_scale=100 compresses 2h of scenario time into ~72s of wall time.
+    sim_cfg = (
+        f"seed: {args.seed}\n"
+        f"time_scale: 100.0\n"
+        f"port: {_SIM_PORT}\n"
+        "cluster:\n"
+        "  gpu_count: 8\n"
+        "  topology: nvlink_full\n"
+        "  nvlink_gbps: 600.0\n"
+        "  ib_gbps: 200.0\n"
+    )
+    cfg_file = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
+    cfg_file.write(sim_cfg)
+    cfg_file.close()
+
     sim = subprocess.Popen(
-        [
-            str(_SIM_BIN),
-            "--scenario", str(_SCENARIO),
-            "--seed", str(args.seed),
-            "--time-scale", "100.0",
-            "--port", str(_SIM_PORT),
-        ],
+        [str(_SIM_BIN), "--config", cfg_file.name],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -86,6 +98,7 @@ def main() -> None:
             sim.wait(timeout=_SIM_SHUTDOWN_TIMEOUT_S)
         except subprocess.TimeoutExpired:
             sim.kill()
+        os.unlink(cfg_file.name)
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(json.dumps(result, indent=2))
