@@ -13,6 +13,8 @@ tracing       = { workspace = true }
 async-trait   = { workspace = true }
 uuid          = { workspace = true }
 parking_lot   = { workspace = true }
+serde         = { workspace = true }
+serde_yaml    = { workspace = true }
 
 [features]
 # Enable real NCCL hardware backend. Requires NCCL 2.27+ and cudarc at link time.
